@@ -13,14 +13,7 @@ import {
     getPendingDiceRoll
 } from '../../core/state.js';
 import { saveSettings, saveChatData } from '../../core/persistence.js';
-import { renderUserStats } from '../rendering/userStats.js';
 import { updateChatThoughts } from '../rendering/thoughts.js';
-import {
-    rollDice as rollDiceCore,
-    clearDiceRoll as clearDiceRollCore,
-    updateDiceDisplay as updateDiceDisplayCore,
-    addDiceQuickReply as addDiceQuickReplyCore
-} from '../features/dice.js';
 
 /**
  * Modern DiceModal ES6 Class
@@ -286,9 +279,9 @@ export function setupDiceRoller() {
         }
     });
 
-    // Roll dice button
+    // Roll dice button - disabled for Story Tracker
     $('#rpg-dice-roll-btn').on('click', async function() {
-        await rollDiceCore(diceModal);
+        // await rollDiceCore(diceModal); // Not available in Story Tracker
     });
 
     // Save roll button (closes popup and saves the roll)
@@ -298,7 +291,7 @@ export function setupDiceRoller() {
         if (roll) {
             extensionSettings.lastDiceRoll = roll;
             saveSettings();
-            updateDiceDisplayCore();
+            // updateDiceDisplayCore(); // Not available in Story Tracker
             setPendingDiceRoll(null);
         }
         closeDicePopup();
@@ -307,14 +300,14 @@ export function setupDiceRoller() {
     // Reset on Enter key
     $('#rpg-dice-count, #rpg-dice-sides').on('keypress', function(e) {
         if (e.which === 13) {
-            rollDiceCore(diceModal);
+            // rollDiceCore(diceModal); // Not available in Story Tracker
         }
     });
 
     // Clear dice roll button
     $('#rpg-clear-dice').on('click', function(e) {
         e.stopPropagation(); // Prevent opening the dice popup
-        clearDiceRollCore();
+        // clearDiceRollCore(); // Not available in Story Tracker
     });
 
     return diceModal;
@@ -408,8 +401,8 @@ export function setupSettingsPopup() {
         saveSettings();
 
         // Re-render user stats and dice display
-        renderUserStats();
-        updateDiceDisplayCore();
+        // renderUserStats(); // Not available in Story Tracker
+        // updateDiceDisplayCore(); // Not available in Story Tracker
         updateChatThoughts(); // Clear the thought bubble in chat
 
         // console.log('[RPG Companion] Chat cache cleared');
@@ -472,7 +465,7 @@ export function applyCustomThemeToPopup() {
  * Backwards compatible wrapper for dice module.
  */
 export function clearDiceRoll() {
-    clearDiceRollCore();
+    // clearDiceRollCore(); // Not available in Story Tracker
 }
 
 /**
@@ -480,7 +473,7 @@ export function clearDiceRoll() {
  * Backwards compatible wrapper for dice module.
  */
 export function updateDiceDisplay() {
-    updateDiceDisplayCore();
+    // updateDiceDisplayCore(); // Not available in Story Tracker
 }
 
 /**
@@ -488,7 +481,7 @@ export function updateDiceDisplay() {
  * Backwards compatible wrapper for dice module.
  */
 export function addDiceQuickReply() {
-    addDiceQuickReplyCore();
+    // addDiceQuickReplyCore(); // Not available in Story Tracker
 }
 
 /**
