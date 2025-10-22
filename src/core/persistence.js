@@ -27,8 +27,10 @@ export function loadSettings() {
  */
 export function saveSettings() {
     const st = SillyTavern.getContext();
-    st.settings[extensionName] = extensionSettings;
-    st.saveSettingsDebounced();
+    if (st.settings) {
+        st.settings[extensionName] = extensionSettings;
+        st.saveSettingsDebounced();
+    }
 }
 
 /**
