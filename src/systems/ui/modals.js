@@ -3,7 +3,6 @@
  * Handles DiceModal and SettingsModal ES6 classes with state management
  */
 
-import { getContext } from '../../../../../../extensions.js';
 import {
     extensionSettings,
     lastGeneratedData,
@@ -359,7 +358,8 @@ export function setupSettingsPopup() {
         committedTrackerData.characterThoughts = null;
 
         // Clear all message swipe data
-        const chat = getContext().chat;
+        const st = SillyTavern.getContext();
+        const chat = st.chat;
         if (chat && chat.length > 0) {
             for (let i = 0; i < chat.length; i++) {
                 const message = chat[i];

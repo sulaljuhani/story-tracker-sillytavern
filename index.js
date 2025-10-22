@@ -1,6 +1,3 @@
-import { getContext, renderExtensionTemplateAsync, extension_settings as st_extension_settings } from '../../../extensions.js';
-import { eventSource, event_types } from '../../../../script.js';
-
 // Core modules
 import { extensionName, extensionDisplayName } from './src/core/config.js';
 import {
@@ -79,8 +76,9 @@ function addExtensionSettings() {
  * Initializes the UI for the extension.
  */
 async function initUI() {
-    // Load the HTML template using SillyTavern's template system
-    const templateHtml = await renderExtensionTemplateAsync(extensionName, 'template');
+    // Load the HTML template using fetch with correct path
+    const templateUrl = `/scripts/extensions/third-party/${extensionName}/template.html`;
+    const templateHtml = await (await fetch(templateUrl, { cache: 'no-cache' })).text();
 
     // Append panel to body - positioning handled by CSS
     $('body').append(templateHtml);
@@ -127,6 +125,9 @@ jQuery(async () => {
     try {
         console.log('[Story Tracker] Starting initialization...');
 
+        // Get SillyTavern context
+        const st = SillyTavern.getContext();
+
         // Load settings with validation
         try {
             loadSettings();
@@ -159,12 +160,12 @@ jQuery(async () => {
         // Register all event listeners
         try {
             registerAllEvents({
-                [event_types.MESSAGE_SENT]: onMessageSent,
-                [event_types.MESSAGE_RECEIVED]: onMessageReceived,
-                [event_types.CHAT_CHANGED]: onCharacterChanged,
-                [event_types.MESSAGE_SWIPED]: onMessageSwiped,
-                [event_types.USER_MESSAGE_RENDERED]: updatePersonaAvatar,
-                [event_types.SETTINGS_UPDATED]: updatePersonaAvatar
+                [st.eventTypes.MESSAGE_SENT]: onMessageSent,
+                [st.eventTypes.MESSAGE_RECEIVED]: onMessageReceived,
+                [st.eventTypes.CHAT_CHANGED]: onCharacterChanged,
+                [st.eventTypes.MESSAGE_SWIPED]: onMessageSwiped,
+                [st.eventTypes.USER_MESSAGE_RENDERED]: updatePersonaAvatar,
+                [st.eventTypes.SETTINGS_UPDATED]: updatePersonaAvatar
             });
         } catch (error) {
             console.error('[Story Tracker] Event registration failed:', error);

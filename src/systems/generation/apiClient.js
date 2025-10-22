@@ -3,8 +3,6 @@
  * Handles API calls for RPG tracker generation
  */
 
-import { generateRaw, chat } from '../../../../../../../script.js';
-import { executeSlashCommandsOnChatInput } from '../../../../../../../scripts/slash-commands.js';
 import {
     extensionSettings,
     lastGeneratedData,
@@ -27,8 +25,9 @@ let originalPresetName = null;
  */
 async function getCurrentPresetName() {
     try {
+        const st = SillyTavern.getContext();
         // Use /preset without arguments to get the current preset name
-        const result = await executeSlashCommandsOnChatInput('/preset', { quiet: true });
+        const result = await st.executeSlashCommandsOnChatInput('/preset', { quiet: true });
 
         // console.log('[RPG Companion] /preset result:', result);
 
@@ -56,9 +55,10 @@ async function getCurrentPresetName() {
  */
 async function switchToPreset(presetName) {
     try {
+        const st = SillyTavern.getContext();
         // Use the /preset slash command to switch presets
         // This is the proper way to change presets in SillyTavern
-        await executeSlashCommandsOnChatInput(`/preset ${presetName}`, { quiet: true });
+        await st.executeSlashCommandsOnChatInput(`/preset ${presetName}`, { quiet: true });
 
         // console.log(`[RPG Companion] Switched to preset "${presetName}"`);
         return true;
@@ -100,7 +100,8 @@ export async function updateTrackerData(renderCallback) {
 
         const prompt = generateSeparateUpdatePrompt();
 
-        const response = await generateRaw({
+        const st = SillyTavern.getContext();
+        const response = await st.generateRaw({
             prompt: prompt,
             quietToLoud: false
         });

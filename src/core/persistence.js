@@ -3,8 +3,6 @@
  * Handles saving/loading extension settings and chat data
  */
 
-import { extension_settings as st_extension_settings, saveSettingsDebounced } from '../../../../script.js';
-import { getContext } from '../../../../extensions.js';
 import {
     extensionSettings,
     setExtensionSettings,
@@ -17,8 +15,9 @@ const extensionName = 'story-tracker';
  * Loads the extension settings from the global settings object.
  */
 export function loadSettings() {
-    if (st_extension_settings[extensionName]) {
-        const savedSettings = st_extension_settings[extensionName];
+    const st = SillyTavern.getContext();
+    if (st.settings[extensionName]) {
+        const savedSettings = st.settings[extensionName];
         updateExtensionSettings(savedSettings);
     }
 }
@@ -27,29 +26,30 @@ export function loadSettings() {
  * Saves the extension settings to the global settings object.
  */
 export function saveSettings() {
-    st_extension_settings[extensionName] = extensionSettings;
-    saveSettingsDebounced();
+    const st = SillyTavern.getContext();
+    st.settings[extensionName] = extensionSettings;
+    st.saveSettingsDebounced();
 }
 
 /**
  * Saves tracker data to the current chat's metadata.
  */
 export function saveChatData() {
-    const context = getContext();
-    if (!context.chat) return;
+    const st = SillyTavern.getContext();
+    if (!st.chat) return;
 
-    if (!context.chat.metadata) {
-        context.chat.metadata = {};
+    if (!st.chat.metadata) {
+        st.chat.metadata = {};
     }
-    context.chat.metadata.story_tracker = extensionSettings.trackerData;
+    st.chat.metadata.story_tracker = extensionSettings.trackerData;
 }
 
 /**
  * Loads tracker data from the current chat's metadata.
  */
 export function loadChatData() {
-    const context = getContext();
-    if (context.chat && context.chat.metadata && context.chat.metadata.story_tracker) {
-        extensionSettings.trackerData = context.chat.metadata.story_tracker;
+    const st = SillyTavern.getContext();
+    if (st.chat && st.chat.metadata && st.chat.metadata.story_tracker) {
+        extensionSettings.trackerData = st.chat.metadata.story_tracker;
     }
 }
