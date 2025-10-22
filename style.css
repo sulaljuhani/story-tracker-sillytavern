@@ -1,16 +1,23 @@
 /* Main Panel */
 .story-tracker-panel {
     position: fixed;
-    top: 0;
+    top: var(--topBarBlockSize);
     right: 0;
     width: 300px;
-    height: 100%;
+    height: calc(100vh - var(--topBarBlockSize));
     background-color: #f0f0f0;
     border-left: 1px solid #ccc;
     box-shadow: -2px 0 5px rgba(0,0,0,0.1);
     z-index: 1000;
     display: flex;
     flex-direction: column;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+}
+
+/* Ensure chat stays centered when panel is visible */
+body:has(.story-tracker-panel) #sheld {
+    margin: auto !important;
 }
 
 .story-tracker-header {
