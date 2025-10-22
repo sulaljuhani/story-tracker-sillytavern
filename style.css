@@ -29,7 +29,7 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     box-shadow: 0 0 20px var(--st-shadow);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     box-sizing: border-box;
-    z-index: 1000;
+    z-index: 1200;
     color: var(--st-text);
     display: flex;
     flex-direction: column;
@@ -468,7 +468,7 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     display: none;
     align-items: center;
     justify-content: center;
-    z-index: 1001;
+    z-index: 1201;
     cursor: pointer;
     box-shadow: 0 4px 12px var(--st-shadow);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -515,7 +515,7 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
         background: rgba(0, 0, 0, 0.55);
         backdrop-filter: blur(4px);
         -webkit-backdrop-filter: blur(4px);
-        z-index: 999;
+        z-index: 1199;
         display: block;
     }
 }
