@@ -1,94 +1,88 @@
 /**
- * Events Module
- * Handles event registration and management
+ * Core Events Module
+ * Wrapper for SillyTavern event system
  */
 
-import { eventSource, event_types } from '../../../../../script.js';
-import { extensionSettings } from './state.js';
+import { eventSource, event_types } from '../../../../../../script.js';
 
 /**
- * Register all extension events
- * @param {Object} eventHandlers - Object mapping event types to handler functions
+ * Register an event handler
+ * @param {string} eventType - Event type from event_types
+ * @param {Function} handler - Event handler function
  */
-export function registerAllEvents(eventHandlers) {
-    try {
-        console.log('[Story Tracker] Registering events...');
+export function on(eventType, handler) {
+    eventSource.on(eventType, handler);
+}
 
-        for (const [eventType, handler] of Object.entries(eventHandlers)) {
-            if (Array.isArray(handler)) {
-                // Multiple handlers for the same event
-                handler.forEach(h => eventSource.on(eventType, h));
-            } else {
-                // Single handler - wrap with error handling
-                eventSource.on(eventType, async (data) => {
-                    try {
-                        await handler(data);
-                    } catch (error) {
-                        console.error(`[Story Tracker] Error in ${eventType} handler:`, error);
-                    }
-                });
+/**
+ * Register a one-time event handler
+ * @param {string} eventType - Event type from event_types
+ * @param {Function} handler - Event handler function
+ */
+export function once(eventType, handler) {
+    eventSource.once(eventType, handler);
+}
+
+/**
+ * Remove an event handler
+ * @param {string} eventType - Event type from event_types
+ * @param {Function} handler - Event handler function to remove
+ */
+export function off(eventType, handler) {
+    eventSource.off(eventType, handler);
+}
+
+/**
+ * Emit an event
+ * @param {string} eventType - Event type to emit
+ * @param {...*} args - Arguments to pass to handlers
+ */
+export function emit(eventType, ...args) {
+    eventSource.emit(eventType, ...args);
+}
+
+/**
+ * Re-export event types for convenience
+ */
+export { event_types };
+
+// Store registered handlers for cleanup
+const registeredHandlers = new Map();
+
+/**
+ * Registers all extension event handlers
+ * @param {Object} handlers - Map of event types to handler functions or arrays of handler functions
+ * @example
+ * registerAllEvents({
+ *     [event_types.MESSAGE_SENT]: onMessageSent,
+ *     [event_types.CHAT_CHANGED]: [onCharacterChanged, updatePersonaAvatar]
+ * });
+ */
+export function registerAllEvents(handlers) {
+    for (const [eventType, handler] of Object.entries(handlers)) {
+        // Handler can be a single function or an array of functions
+        const handlerArray = Array.isArray(handler) ? handler : [handler];
+
+        for (const handlerFn of handlerArray) {
+            eventSource.on(eventType, handlerFn);
+
+            // Store for later cleanup
+            if (!registeredHandlers.has(eventType)) {
+                registeredHandlers.set(eventType, []);
             }
+            registeredHandlers.get(eventType).push(handlerFn);
         }
-
-        console.log('[Story Tracker] Events registered successfully');
-    } catch (error) {
-        console.error('[Story Tracker] Error registering events:', error);
-        throw error;
     }
 }
 
 /**
- * Unregister all extension events
- * @param {Object} eventHandlers - Object mapping event types to handler functions
+ * Unregisters all extension event handlers (for cleanup/reload)
  */
-export function unregisterAllEvents(eventHandlers) {
-    try {
-        console.log('[Story Tracker] Unregistering events...');
-
-        for (const [eventType, handler] of Object.entries(eventHandlers)) {
-            if (Array.isArray(handler)) {
-                // Multiple handlers for the same event
-                handler.forEach(h => eventSource.off(eventType, h));
-            } else {
-                // Single handler
-                eventSource.off(eventType, handler);
-            }
+export function unregisterAllEvents() {
+    for (const [eventType, handlers] of registeredHandlers.entries()) {
+        for (const handler of handlers) {
+            eventSource.off(eventType, handler);
         }
-
-        console.log('[Story Tracker] Events unregistered successfully');
-    } catch (error) {
-        console.error('[Story Tracker] Error unregistering events:', error);
     }
-}
-
-/**
- * Check if extension should be active based on settings and context
- * @returns {boolean} Whether extension should be active
- */
-export function shouldExtensionBeActive() {
-    return extensionSettings.enabled && extensionSettings.showTracker;
-}
-
-/**
- * Check if auto-update should trigger
- * @returns {boolean} Whether auto-update should trigger
- */
-export function shouldAutoUpdate() {
-    return shouldExtensionBeActive() && extensionSettings.autoUpdate;
-}
-
-/**
- * Get event context information
- * @param {string} eventType - The event type
- * @param {any} eventData - Event-specific data
- * @returns {Object} Context information
- */
-export function getEventContext(eventType, eventData = null) {
-    return {
-        eventType,
-        eventData,
-        timestamp: Date.now(),
-        extensionActive: shouldExtensionBeActive(),
-        autoUpdateEnabled: extensionSettings.autoUpdate
-    };
+    registeredHandlers.clear();
 }

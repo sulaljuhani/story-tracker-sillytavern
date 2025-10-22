@@ -1,155 +1,231 @@
 /**
  * API Client Module
- * Handles communication with AI APIs for tracker updates
+ * Handles API calls for RPG tracker generation
  */
 
-import { generateRaw, getRequestHeaders } from '../../../../script.js';
-import { extensionSettings, setIsGenerating, isGenerating } from '../../core/state.js';
-import { generateTrackerPrompt, generateSeparateUpdatePrompt } from './promptBuilder.js';
-import { parseTrackerResponse, updateTrackerData as applyTrackerUpdate } from './parser.js';
+import { generateRaw, chat } from '../../../../../../../script.js';
+import { executeSlashCommandsOnChatInput } from '../../../../../../../scripts/slash-commands.js';
+import {
+    extensionSettings,
+    lastGeneratedData,
+    committedTrackerData,
+    isGenerating,
+    lastActionWasSwipe,
+    setIsGenerating,
+    setLastActionWasSwipe
+} from '../../core/state.js';
+import { saveChatData } from '../../core/persistence.js';
+import { generateSeparateUpdatePrompt } from './promptBuilder.js';
+import { parseResponse, parseUserStats } from './parser.js';
 
-// Type imports
-/** @typedef {import('../../types/tracker.js').TrackerUpdateResult} TrackerUpdateResult */
+// Store the original preset name to restore after tracker generation
+let originalPresetName = null;
 
 /**
- * Updates the story tracker data by calling the AI API
- * @param {Function} renderCallback - Callback to re-render the UI after update
- * @returns {Promise<TrackerUpdateResult>} Update result
+ * Gets the current preset name using the /preset command
+ * @returns {Promise<string|null>} Current preset name or null if unavailable
  */
-export async function updateTrackerData(renderCallback = null) {
+async function getCurrentPresetName() {
     try {
-        // Prevent concurrent updates
-        if (isGenerating) {
-            console.log('[Story Tracker] Update already in progress, skipping');
-            return { success: false, errors: ['Update already in progress'] };
+        // Use /preset without arguments to get the current preset name
+        const result = await executeSlashCommandsOnChatInput('/preset', { quiet: true });
+
+        // console.log('[RPG Companion] /preset result:', result);
+
+        // The result should be an object with a 'pipe' property containing the preset name
+        if (result && typeof result === 'object' && result.pipe) {
+            const presetName = String(result.pipe).trim();
+            // console.log('[RPG Companion] Extracted preset name:', presetName);
+            return presetName || null;
         }
 
+        // Fallback if result is a string
+        if (typeof result === 'string') {
+            return result.trim() || null;
+        }
+
+        return null;
+    } catch (error) {
+        console.error('[RPG Companion] Error getting current preset:', error);
+        return null;
+    }
+}/**
+ * Switches to a specific preset by name using the /preset slash command
+ * @param {string} presetName - Name of the preset to switch to
+ * @returns {Promise<boolean>} True if switching succeeded, false otherwise
+ */
+async function switchToPreset(presetName) {
+    try {
+        // Use the /preset slash command to switch presets
+        // This is the proper way to change presets in SillyTavern
+        await executeSlashCommandsOnChatInput(`/preset ${presetName}`, { quiet: true });
+
+        // console.log(`[RPG Companion] Switched to preset "${presetName}"`);
+        return true;
+    } catch (error) {
+        console.error('[RPG Companion] Error switching preset:', error);
+        return false;
+    }
+}
+
+
+/**
+ * Updates RPG tracker data using separate API call (separate mode only).
+ * Makes a dedicated API call to generate tracker data, then stores it
+ * in the last assistant message's swipe data.
+ *
+ * @param {Function} renderUserStats - UI function to render user stats
+ * @param {Function} renderInfoBox - UI function to render info box
+ * @param {Function} renderThoughts - UI function to render character thoughts
+ * @param {Function} renderInventory - UI function to render inventory
+ */
+export async function updateRPGData(renderUserStats, renderInfoBox, renderThoughts, renderInventory) {
+    if (isGenerating) {
+        // console.log('[RPG Companion] Already generating, skipping...');
+        return;
+    }
+
+    if (!extensionSettings.enabled) {
+        return;
+    }
+
+    if (extensionSettings.generationMode !== 'separate') {
+        // console.log('[RPG Companion] Not in separate mode, skipping manual update');
+        return;
+    }
+
+    try {
         setIsGenerating(true);
 
-        console.log('[Story Tracker] Starting tracker update...');
+        // Update button to show "Updating..." state
+        const $updateBtn = $('#rpg-manual-update');
+        const originalHtml = $updateBtn.html();
+        $updateBtn.html('<i class="fa-solid fa-spinner fa-spin"></i> Updating...').prop('disabled', true);
 
-        let responseText = '';
-
-        if (extensionSettings.generationMode === 'separate') {
-            // Separate mode: Make a separate API call
-            responseText = await generateSeparateTrackerUpdate();
-        } else {
-            // Together mode: Inject prompt into main generation
-            // This would be handled by the injector module
-            console.log('[Story Tracker] Together mode not yet implemented');
-            return { success: false, errors: ['Together mode not implemented'] };
+        // Save current preset name before switching (if we're going to switch)
+        if (extensionSettings.useSeparatePreset) {
+            originalPresetName = await getCurrentPresetName();
+            console.log(`[RPG Companion] Saved original preset: "${originalPresetName}"`);
         }
 
-        if (!responseText) {
-            return { success: false, errors: ['No response from AI'] };
+        // Switch to separate preset if enabled
+        if (extensionSettings.useSeparatePreset) {
+            const switched = await switchToPreset('RPG Companion Trackers');
+            if (!switched) {
+                console.warn('[RPG Companion] Failed to switch to RPG Companion Trackers preset. Using current preset.');
+                originalPresetName = null; // Don't try to restore if we didn't switch
+            }
         }
 
-        // Parse the response
-        const parsedData = parseTrackerResponse(responseText);
-        if (!parsedData) {
-            return { success: false, errors: ['Failed to parse tracker data from response'] };
-        }
+        const prompt = generateSeparateUpdatePrompt();
 
-        // Update the tracker data
-        const updateSuccess = applyTrackerUpdate(parsedData);
-        if (!updateSuccess) {
-            return { success: false, errors: ['Failed to update tracker data'] };
-        }
+        // Generate using raw prompt (uses current preset, no chat history)
+        const response = await generateRaw({
+            prompt: prompt,
+            quietToLoud: false
+        });
 
-        // Re-render UI if callback provided
-        if (renderCallback) {
-            renderCallback();
-        }
+        if (response) {
+            // console.log('[RPG Companion] Raw AI response:', response);
+            const parsedData = parseResponse(response);
+            // console.log('[RPG Companion] Parsed data:', parsedData);
+            // console.log('[RPG Companion] parsedData.userStats:', parsedData.userStats ? parsedData.userStats.substring(0, 100) + '...' : 'null');
 
-        console.log('[Story Tracker] Tracker update completed successfully');
-        return {
-            success: true,
-            updatedData: extensionSettings.trackerData,
-            errors: []
-        };
+            // DON'T update lastGeneratedData here - it should only reflect the data
+            // from the assistant message the user replied to, not auto-generated updates
+            // This ensures swipes/regenerations use consistent source data
+
+            // Store RPG data for the last assistant message (separate mode)
+            const lastMessage = chat && chat.length > 0 ? chat[chat.length - 1] : null;
+            // console.log('[RPG Companion] Last message is_user:', lastMessage ? lastMessage.is_user : 'no message');
+            if (lastMessage && !lastMessage.is_user) {
+                if (!lastMessage.extra) {
+                    lastMessage.extra = {};
+                }
+                if (!lastMessage.extra.rpg_companion_swipes) {
+                    lastMessage.extra.rpg_companion_swipes = {};
+                }
+
+                const currentSwipeId = lastMessage.swipe_id || 0;
+                lastMessage.extra.rpg_companion_swipes[currentSwipeId] = {
+                    userStats: parsedData.userStats,
+                    infoBox: parsedData.infoBox,
+                    characterThoughts: parsedData.characterThoughts
+                };
+
+                // console.log('[RPG Companion] Stored separate mode RPG data for message swipe', currentSwipeId);
+
+                // Update lastGeneratedData for display AND future commit
+                if (parsedData.userStats) {
+                    lastGeneratedData.userStats = parsedData.userStats;
+                    parseUserStats(parsedData.userStats);
+                }
+                if (parsedData.infoBox) {
+                    lastGeneratedData.infoBox = parsedData.infoBox;
+                }
+                if (parsedData.characterThoughts) {
+                    lastGeneratedData.characterThoughts = parsedData.characterThoughts;
+                }
+                // console.log('[RPG Companion] 💾 SEPARATE MODE: Updated lastGeneratedData:', {
+                //     userStats: lastGeneratedData.userStats ? 'exists' : 'null',
+                //     infoBox: lastGeneratedData.infoBox ? 'exists' : 'null',
+                //     characterThoughts: lastGeneratedData.characterThoughts ? 'exists' : 'null'
+                // });
+
+                // If there's no committed data yet (first time) or only has placeholder data, commit immediately
+                const hasNoRealData = !committedTrackerData.userStats && !committedTrackerData.infoBox && !committedTrackerData.characterThoughts;
+                const hasOnlyPlaceholderData = (
+                    (!committedTrackerData.userStats || committedTrackerData.userStats === '') &&
+                    (!committedTrackerData.infoBox || committedTrackerData.infoBox === 'Info Box\n---\n' || committedTrackerData.infoBox === '') &&
+                    (!committedTrackerData.characterThoughts || committedTrackerData.characterThoughts === 'Present Characters\n---\n' || committedTrackerData.characterThoughts === '')
+                );
+
+                if (hasNoRealData || hasOnlyPlaceholderData) {
+                    committedTrackerData.userStats = parsedData.userStats;
+                    committedTrackerData.infoBox = parsedData.infoBox;
+                    committedTrackerData.characterThoughts = parsedData.characterThoughts;
+                    // console.log('[RPG Companion] 🔆 FIRST TIME: Auto-committed tracker data');
+                }
+
+                // Render the updated data
+                renderUserStats();
+                renderInfoBox();
+                renderThoughts();
+                renderInventory();
+            } else {
+                // No assistant message to attach to - just update display
+                if (parsedData.userStats) {
+                    parseUserStats(parsedData.userStats);
+                }
+                renderUserStats();
+                renderInfoBox();
+                renderThoughts();
+                renderInventory();
+            }
+
+            // Save to chat metadata
+            saveChatData();
+        }
 
     } catch (error) {
-        console.error('[Story Tracker] Error updating tracker data:', error);
-        return {
-            success: false,
-            errors: [error.message || 'Unknown error occurred']
-        };
+        console.error('[RPG Companion] Error updating RPG data:', error);
     } finally {
-        setIsGenerating(false);
-    }
-}
-
-/**
- * Generates tracker update in separate mode
- * @returns {Promise<string>} AI response text
- */
-async function generateSeparateTrackerUpdate() {
-    try {
-        const messages = generateSeparateUpdatePrompt();
-
-        console.log('[Story Tracker] Making separate API call for tracker update');
-
-        const response = await generateRaw(
-            messages,
-            extensionSettings.useSeparatePreset,
-            true, // streaming
-            null, // quietToLoud
-            null, // skipRepetitionCheck
-            null, // customTokenCount
-            false // doNotSaveToLogs
-        );
-
-        if (!response || !response[0]) {
-            throw new Error('No response received from API');
+        // Restore original preset if we switched to a separate one
+        if (originalPresetName && extensionSettings.useSeparatePreset) {
+            console.log(`[RPG Companion] Restoring original preset: "${originalPresetName}"`);
+            await switchToPreset(originalPresetName);
+            originalPresetName = null; // Clear after restoring
         }
 
-        return response[0].generated_text || response[0].text || '';
+        setIsGenerating(false);
 
-    } catch (error) {
-        console.error('[Story Tracker] Error in separate generation:', error);
-        throw error;
+        // Restore button to original state
+        const $updateBtn = $('#rpg-manual-update');
+        $updateBtn.html('<i class="fa-solid fa-sync"></i> Refresh RPG Info').prop('disabled', false);
+
+        // Reset the flag after tracker generation completes
+        // This ensures the flag persists through both main generation AND tracker generation
+        // console.log('[RPG Companion] 🔄 Tracker generation complete - resetting lastActionWasSwipe to false');
+        setLastActionWasSwipe(false);
     }
-}
-
-/**
- * Generates tracker update in together mode (for future implementation)
- * @returns {Promise<string>} AI response text
- */
-async function generateTogetherTrackerUpdate() {
-    // This would inject the tracker prompt into the main chat generation
-    // Implementation would depend on how SillyTavern handles prompt injection
-    throw new Error('Together mode not yet implemented');
-}
-
-/**
- * Checks if tracker update should be triggered
- * @returns {boolean} Whether update should proceed
- */
-export function shouldTriggerUpdate() {
-    // Check if extension is enabled and has active fields
-    if (!extensionSettings.enabled || !extensionSettings.showTracker) {
-        return false;
-    }
-
-    // Check if there are any active fields to update
-    const hasActiveFields = extensionSettings.trackerData.sections.some(section =>
-        section.subsections.some(subsection =>
-            subsection.fields.some(field => field.enabled)
-        )
-    );
-
-    if (!hasActiveFields) {
-        console.log('[Story Tracker] No active fields to update');
-        return false;
-    }
-
-    return true;
-}
-
-/**
- * Gets the current generation status
- * @returns {boolean} Whether generation is in progress
- */
-export function getGenerationStatus() {
-    return isGenerating;
 }

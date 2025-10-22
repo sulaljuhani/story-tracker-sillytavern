@@ -1,342 +1,500 @@
 /**
- * Modals UI Module
- * Handles modal dialogs for adding/editing tracker elements
+ * Modal Management Module
+ * Handles DiceModal and SettingsModal ES6 classes with state management
  */
 
-import { extensionSettings } from '../../core/state.js';
+import { getContext } from '../../../../../../extensions.js';
+import {
+    extensionSettings,
+    lastGeneratedData,
+    committedTrackerData,
+    $infoBoxContainer,
+    $thoughtsContainer,
+    setPendingDiceRoll,
+    getPendingDiceRoll
+} from '../../core/state.js';
 import { saveSettings, saveChatData } from '../../core/persistence.js';
-import { createSection, createSubsection, createField, generateId } from '../../core/state.js';
-
-// Type imports
-/** @typedef {import('../../types/tracker.js').TrackerSection} TrackerSection */
-/** @typedef {import('../../types/tracker.js').TrackerSubsection} TrackerSubsection */
-/** @typedef {import('../../types/tracker.js').TrackerField} TrackerField */
-
-/**
- * Shows modal for adding a new section
- */
-export function showAddSectionModal() {
-    const modalHtml = `
-        <div class="story-tracker-modal-body">
-            <div class="form-group">
-                <label for="section-name">Section Name:</label>
-                <input type="text" id="section-name" placeholder="e.g., World, Characters, Plot" required>
-            </div>
-            <div class="form-actions">
-                <button class="story-tracker-btn" id="cancel-add-section">Cancel</button>
-                <button class="story-tracker-btn story-tracker-btn-primary" id="confirm-add-section">Add Section</button>
-            </div>
-        </div>
-    `;
-
-    showModal('Add Section', modalHtml, () => {
-        setupAddSectionModalEvents();
-    });
-}
+import { renderUserStats } from '../rendering/userStats.js';
+import { updateChatThoughts } from '../rendering/thoughts.js';
+import {
+    rollDice as rollDiceCore,
+    clearDiceRoll as clearDiceRollCore,
+    updateDiceDisplay as updateDiceDisplayCore,
+    addDiceQuickReply as addDiceQuickReplyCore
+} from '../features/dice.js';
 
 /**
- * Shows modal for adding a new subsection
- * @param {string} sectionId - ID of the parent section
+ * Modern DiceModal ES6 Class
+ * Manages dice roller modal with proper state management and CSS classes
  */
-export function showAddSubsectionModal(sectionId) {
-    const modalHtml = `
-        <div class="story-tracker-modal-body">
-            <div class="form-group">
-                <label for="subsection-name">Subsection Name:</label>
-                <input type="text" id="subsection-name" placeholder="e.g., {{user}}, Environment, NPCs" required>
-            </div>
-            <div class="form-actions">
-                <button class="story-tracker-btn" id="cancel-add-subsection">Cancel</button>
-                <button class="story-tracker-btn story-tracker-btn-primary" id="confirm-add-subsection" data-section-id="${sectionId}">Add Subsection</button>
-            </div>
-        </div>
-    `;
+export class DiceModal {
+    constructor() {
+        this.modal = document.getElementById('rpg-dice-popup');
+        this.animation = document.getElementById('rpg-dice-animation');
+        this.result = document.getElementById('rpg-dice-result');
+        this.resultValue = document.getElementById('rpg-dice-result-value');
+        this.resultDetails = document.getElementById('rpg-dice-result-details');
+        this.rollBtn = document.getElementById('rpg-dice-roll-btn');
 
-    showModal('Add Subsection', modalHtml, () => {
-        setupAddSubsectionModalEvents();
-    });
-}
+        this.state = 'IDLE'; // IDLE, ROLLING, SHOWING_RESULT
+        this.isAnimating = false;
+    }
 
-/**
- * Shows modal for adding a new field
- * @param {string} subsectionId - ID of the parent subsection
- */
-export function showAddFieldModal(subsectionId) {
-    const modalHtml = `
-        <div class="story-tracker-modal-body">
-            <div class="form-group">
-                <label for="field-name">Field Name:</label>
-                <input type="text" id="field-name" placeholder="e.g., Location, Emotional State, Health" required>
-            </div>
-            <div class="form-group">
-                <label for="field-prompt">Update Prompt:</label>
-                <textarea id="field-prompt" placeholder="Describe how the AI should update this field based on story events..." required rows="3"></textarea>
-            </div>
-            <div class="form-group">
-                <label for="field-type">Field Type:</label>
-                <select id="field-type">
-                    <option value="text">Text</option>
-                    <option value="number">Number</option>
-                    <option value="boolean">Boolean</option>
-                </select>
-            </div>
-            <div class="form-actions">
-                <button class="story-tracker-btn" id="cancel-add-field">Cancel</button>
-                <button class="story-tracker-btn story-tracker-btn-primary" id="confirm-add-field" data-subsection-id="${subsectionId}">Add Field</button>
-            </div>
-        </div>
-    `;
+    /**
+     * Opens the modal with proper animation
+     */
+    open() {
+        if (this.isAnimating) return;
 
-    showModal('Add Field', modalHtml, () => {
-        setupAddFieldModalEvents();
-    });
-}
+        // Apply theme
+        const theme = extensionSettings.theme;
+        this.modal.setAttribute('data-theme', theme);
 
-/**
- * Shows modal for editing a field
- * @param {string} fieldId - ID of the field to edit
- */
-export function showEditFieldModal(fieldId) {
-    const field = findFieldById(fieldId);
-    if (!field) return;
+        // Apply custom theme if needed
+        if (theme === 'custom') {
+            this._applyCustomTheme();
+        }
 
-    const modalHtml = `
-        <div class="story-tracker-modal-body">
-            <div class="form-group">
-                <label for="edit-field-name">Field Name:</label>
-                <input type="text" id="edit-field-name" value="${field.name}" required>
-            </div>
-            <div class="form-group">
-                <label for="edit-field-prompt">Update Prompt:</label>
-                <textarea id="edit-field-prompt" required rows="3">${field.prompt}</textarea>
-            </div>
-            <div class="form-group">
-                <label for="edit-field-type">Field Type:</label>
-                <select id="edit-field-type">
-                    <option value="text" ${field.type === 'text' ? 'selected' : ''}>Text</option>
-                    <option value="number" ${field.type === 'number' ? 'selected' : ''}>Number</option>
-                    <option value="boolean" ${field.type === 'boolean' ? 'selected' : ''}>Boolean</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="edit-field-value">Current Value:</label>
-                <input type="text" id="edit-field-value" value="${field.value || ''}" placeholder="Current field value">
-            </div>
-            <div class="form-actions">
-                <button class="story-tracker-btn" id="cancel-edit-field">Cancel</button>
-                <button class="story-tracker-btn story-tracker-btn-primary" id="confirm-edit-field" data-field-id="${fieldId}">Save Changes</button>
-            </div>
-        </div>
-    `;
+        // Reset to initial state
+        this._setState('IDLE');
 
-    showModal('Edit Field', modalHtml, () => {
-        setupEditFieldModalEvents();
-    });
-}
+        // Open modal with CSS class
+        this.modal.classList.add('is-open');
+        this.modal.classList.remove('is-closing');
 
-/**
- * Shows a modal dialog
- * @param {string} title - Modal title
- * @param {string} bodyHtml - Modal body HTML
- * @param {Function} setupCallback - Callback to set up event listeners
- */
-function showModal(title, bodyHtml, setupCallback) {
-    const $modal = $('#story-tracker-field-modal');
-    const $title = $modal.find('#field-modal-title');
-    const $body = $modal.find('.story-tracker-modal-body');
+        // Focus management
+        this.modal.querySelector('#rpg-dice-popup-close')?.focus();
+    }
 
-    $title.text(title);
-    $body.html(bodyHtml);
-    $modal.show();
+    /**
+     * Closes the modal with animation
+     */
+    close() {
+        if (this.isAnimating) return;
 
-    if (setupCallback) {
-        setupCallback();
+        this.isAnimating = true;
+        this.modal.classList.add('is-closing');
+        this.modal.classList.remove('is-open');
+
+        // Wait for animation to complete
+        setTimeout(() => {
+            this.modal.classList.remove('is-closing');
+            this.isAnimating = false;
+
+            // Clear pending roll
+            setPendingDiceRoll(null);
+        }, 200);
+    }
+
+    /**
+     * Starts the rolling animation
+     */
+    startRolling() {
+        this._setState('ROLLING');
+    }
+
+    /**
+     * Shows the result
+     * @param {number} total - The total roll value
+     * @param {Array<number>} rolls - Individual roll values
+     */
+    showResult(total, rolls) {
+        this._setState('SHOWING_RESULT');
+
+        // Update result values
+        this.resultValue.textContent = total;
+        this.resultValue.classList.add('is-animating');
+
+        // Remove animation class after it completes
+        setTimeout(() => {
+            this.resultValue.classList.remove('is-animating');
+        }, 500);
+
+        // Show details if multiple rolls
+        if (rolls && rolls.length > 1) {
+            this.resultDetails.textContent = `Rolls: ${rolls.join(', ')}`;
+        } else {
+            this.resultDetails.textContent = '';
+        }
+    }
+
+    /**
+     * Manages modal state changes
+     * @private
+     */
+    _setState(newState) {
+        this.state = newState;
+
+        switch (newState) {
+            case 'IDLE':
+                this.rollBtn.hidden = false;
+                this.animation.hidden = true;
+                this.result.hidden = true;
+                break;
+
+            case 'ROLLING':
+                this.rollBtn.hidden = true;
+                this.animation.hidden = false;
+                this.result.hidden = true;
+                this.animation.setAttribute('aria-busy', 'true');
+                break;
+
+            case 'SHOWING_RESULT':
+                this.rollBtn.hidden = true;
+                this.animation.hidden = true;
+                this.result.hidden = false;
+                this.animation.setAttribute('aria-busy', 'false');
+                break;
+        }
+    }
+
+    /**
+     * Applies custom theme colors
+     * @private
+     */
+    _applyCustomTheme() {
+        const content = this.modal.querySelector('.rpg-dice-popup-content');
+        if (content && extensionSettings.customColors) {
+            content.style.setProperty('--rpg-bg', extensionSettings.customColors.bg);
+            content.style.setProperty('--rpg-accent', extensionSettings.customColors.accent);
+            content.style.setProperty('--rpg-text', extensionSettings.customColors.text);
+            content.style.setProperty('--rpg-highlight', extensionSettings.customColors.highlight);
+        }
     }
 }
 
 /**
- * Sets up event listeners for add section modal
+ * SettingsModal - Manages the settings popup modal
+ * Handles opening, closing, theming, and animations
  */
-function setupAddSectionModalEvents() {
-    $('#confirm-add-section').off('click').on('click', function() {
-        const name = $('#section-name').val().trim();
-        if (name) {
-            addSection(name);
-            $('#story-tracker-field-modal').hide();
+export class SettingsModal {
+    constructor() {
+        this.modal = document.getElementById('rpg-settings-popup');
+        this.content = this.modal?.querySelector('.rpg-settings-popup-content');
+        this.isAnimating = false;
+    }
+
+    /**
+     * Opens the modal with proper animation
+     */
+    open() {
+        if (this.isAnimating || !this.modal) return;
+
+        // Apply theme
+        const theme = extensionSettings.theme || 'default';
+        this.modal.setAttribute('data-theme', theme);
+
+        // Apply custom theme if needed
+        if (theme === 'custom') {
+            this._applyCustomTheme();
+        }
+
+        // Open modal with CSS class
+        this.modal.classList.add('is-open');
+        this.modal.classList.remove('is-closing');
+
+        // Focus management
+        this.modal.querySelector('#rpg-close-settings')?.focus();
+    }
+
+    /**
+     * Closes the modal with animation
+     */
+    close() {
+        if (this.isAnimating || !this.modal) return;
+
+        this.isAnimating = true;
+        this.modal.classList.add('is-closing');
+        this.modal.classList.remove('is-open');
+
+        // Wait for animation to complete
+        setTimeout(() => {
+            this.modal.classList.remove('is-closing');
+            this.isAnimating = false;
+        }, 200);
+    }
+
+    /**
+     * Updates the theme in real-time (used when theme selector changes)
+     */
+    updateTheme() {
+        if (!this.modal) return;
+
+        const theme = extensionSettings.theme || 'default';
+        this.modal.setAttribute('data-theme', theme);
+
+        if (theme === 'custom') {
+            this._applyCustomTheme();
+        } else {
+            // Clear custom CSS variables to let theme CSS take over
+            this._clearCustomTheme();
+        }
+    }
+
+    /**
+     * Applies custom theme colors
+     * @private
+     */
+    _applyCustomTheme() {
+        if (!this.content || !extensionSettings.customColors) return;
+
+        this.content.style.setProperty('--rpg-bg', extensionSettings.customColors.bg);
+        this.content.style.setProperty('--rpg-accent', extensionSettings.customColors.accent);
+        this.content.style.setProperty('--rpg-text', extensionSettings.customColors.text);
+        this.content.style.setProperty('--rpg-highlight', extensionSettings.customColors.highlight);
+    }
+
+    /**
+     * Clears custom theme colors
+     * @private
+     */
+    _clearCustomTheme() {
+        if (!this.content) return;
+
+        this.content.style.setProperty('--rpg-bg', '');
+        this.content.style.setProperty('--rpg-accent', '');
+        this.content.style.setProperty('--rpg-text', '');
+        this.content.style.setProperty('--rpg-highlight', '');
+    }
+}
+
+// Global instances
+let diceModal = null;
+let settingsModal = null;
+
+/**
+ * Sets up the dice roller functionality.
+ * @returns {DiceModal} The initialized DiceModal instance
+ */
+export function setupDiceRoller() {
+    // Initialize DiceModal instance
+    diceModal = new DiceModal();
+
+    // Click dice display to open popup
+    $('#rpg-dice-display').on('click', function() {
+        openDicePopup();
+    });
+
+    // Close popup - handle both close button and backdrop clicks
+    $('#rpg-dice-popup-close').on('click', function() {
+        closeDicePopup();
+    });
+
+    // Close on backdrop click (clicking outside content)
+    $('#rpg-dice-popup').on('click', function(e) {
+        if (e.target === this) {
+            closeDicePopup();
         }
     });
 
-    $('#cancel-add-section').off('click').on('click', function() {
-        $('#story-tracker-field-modal').hide();
+    // Roll dice button
+    $('#rpg-dice-roll-btn').on('click', async function() {
+        await rollDiceCore(diceModal);
     });
-}
 
-/**
- * Sets up event listeners for add subsection modal
- */
-function setupAddSubsectionModalEvents() {
-    $('#confirm-add-subsection').off('click').on('click', function() {
-        const sectionId = $(this).data('section-id');
-        const name = $('#subsection-name').val().trim();
-        if (name && sectionId) {
-            addSubsection(sectionId, name);
-            $('#story-tracker-field-modal').hide();
+    // Save roll button (closes popup and saves the roll)
+    $('#rpg-dice-save-btn').on('click', function() {
+        // Save the pending roll
+        const roll = getPendingDiceRoll();
+        if (roll) {
+            extensionSettings.lastDiceRoll = roll;
+            saveSettings();
+            updateDiceDisplayCore();
+            setPendingDiceRoll(null);
+        }
+        closeDicePopup();
+    });
+
+    // Reset on Enter key
+    $('#rpg-dice-count, #rpg-dice-sides').on('keypress', function(e) {
+        if (e.which === 13) {
+            rollDiceCore(diceModal);
         }
     });
 
-    $('#cancel-add-subsection').off('click').on('click', function() {
-        $('#story-tracker-field-modal').hide();
+    // Clear dice roll button
+    $('#rpg-clear-dice').on('click', function(e) {
+        e.stopPropagation(); // Prevent opening the dice popup
+        clearDiceRollCore();
     });
+
+    return diceModal;
 }
 
 /**
- * Sets up event listeners for add field modal
+ * Sets up the settings popup functionality.
+ * @returns {SettingsModal} The initialized SettingsModal instance
  */
-function setupAddFieldModalEvents() {
-    $('#confirm-add-field').off('click').on('click', function() {
-        const subsectionId = $(this).data('subsection-id');
-        const name = $('#field-name').val().trim();
-        const prompt = $('#field-prompt').val().trim();
-        const type = $('#field-type').val();
+export function setupSettingsPopup() {
+    // Initialize SettingsModal instance
+    settingsModal = new SettingsModal();
 
-        if (name && prompt && subsectionId) {
-            addField(subsectionId, name, prompt, type);
-            $('#story-tracker-field-modal').hide();
+    // Open settings popup
+    $('#rpg-open-settings').on('click', function() {
+        openSettingsPopup();
+    });
+
+    // Close settings popup - close button
+    $('#rpg-close-settings').on('click', function() {
+        closeSettingsPopup();
+    });
+
+    // Close on backdrop click (clicking outside content)
+    $('#rpg-settings-popup').on('click', function(e) {
+        if (e.target === this) {
+            closeSettingsPopup();
         }
     });
 
-    $('#cancel-add-field').off('click').on('click', function() {
-        $('#story-tracker-field-modal').hide();
-    });
-}
+    // Clear cache button
+    $('#rpg-clear-cache').on('click', function() {
+        // Clear the data
+        lastGeneratedData.userStats = null;
+        lastGeneratedData.infoBox = null;
+        lastGeneratedData.characterThoughts = null;
 
-/**
- * Sets up event listeners for edit field modal
- */
-function setupEditFieldModalEvents() {
-    $('#confirm-edit-field').off('click').on('click', function() {
-        const fieldId = $(this).data('field-id');
-        const name = $('#edit-field-name').val().trim();
-        const prompt = $('#edit-field-prompt').val().trim();
-        const type = $('#edit-field-type').val();
-        const value = $('#edit-field-value').val().trim();
+        // Clear committed tracker data (used for generation context)
+        committedTrackerData.userStats = null;
+        committedTrackerData.infoBox = null;
+        committedTrackerData.characterThoughts = null;
 
-        if (name && prompt && fieldId) {
-            updateField(fieldId, name, prompt, type, value);
-            $('#story-tracker-field-modal').hide();
+        // Clear all message swipe data
+        const chat = getContext().chat;
+        if (chat && chat.length > 0) {
+            for (let i = 0; i < chat.length; i++) {
+                const message = chat[i];
+                if (message.extra && message.extra.rpg_companion_swipes) {
+                    delete message.extra.rpg_companion_swipes;
+                    // console.log('[RPG Companion] Cleared swipe data from message at index', i);
+                }
+            }
         }
-    });
 
-    $('#cancel-edit-field').off('click').on('click', function() {
-        $('#story-tracker-field-modal').hide();
-    });
-}
+        // Clear the UI
+        if ($infoBoxContainer) {
+            $infoBoxContainer.empty();
+        }
+        if ($thoughtsContainer) {
+            $thoughtsContainer.empty();
+        }
 
-/**
- * Adds a new section
- * @param {string} name - Section name
- */
-function addSection(name) {
-    const section = createSection(name);
-    extensionSettings.trackerData.sections.push(section);
-    saveSettings();
-    saveChatData();
+        // Reset stats to defaults and re-render
+        extensionSettings.userStats = {
+            health: 100,
+            satiety: 100,
+            energy: 100,
+            hygiene: 100,
+            arousal: 0,
+            mood: '😐',
+            conditions: 'None',
+            inventory: 'None'
+        };
 
-    // Re-render the tracker
-    import('../rendering/tracker.js').then(module => {
-        module.renderTracker();
-    });
-}
+        // Reset classic stats (attributes) to defaults
+        extensionSettings.classicStats = {
+            str: 10,
+            dex: 10,
+            con: 10,
+            int: 10,
+            wis: 10,
+            cha: 10
+        };
 
-/**
- * Adds a new subsection to a section
- * @param {string} sectionId - Parent section ID
- * @param {string} name - Subsection name
- */
-function addSubsection(sectionId, name) {
-    const section = findSectionById(sectionId);
-    if (section) {
-        const subsection = createSubsection(name);
-        section.subsections.push(subsection);
-        saveSettings();
+        // Clear dice roll
+        extensionSettings.lastDiceRoll = null;
+
+        // Save everything
         saveChatData();
-
-        // Re-render the tracker
-        import('../rendering/tracker.js').then(module => {
-            module.renderTracker();
-        });
-    }
-}
-
-/**
- * Adds a new field to a subsection
- * @param {string} subsectionId - Parent subsection ID
- * @param {string} name - Field name
- * @param {string} prompt - Field prompt
- * @param {string} type - Field type
- */
-function addField(subsectionId, name, prompt, type) {
-    const subsection = findSubsectionById(subsectionId);
-    if (subsection) {
-        const field = createField(name, prompt, type);
-        subsection.fields.push(field);
         saveSettings();
-        saveChatData();
 
-        // Re-render the tracker
-        import('../rendering/tracker.js').then(module => {
-            module.renderTracker();
-        });
+        // Re-render user stats and dice display
+        renderUserStats();
+        updateDiceDisplayCore();
+        updateChatThoughts(); // Clear the thought bubble in chat
+
+        // console.log('[RPG Companion] Chat cache cleared');
+    });
+
+    return settingsModal;
+}
+
+/**
+ * Opens the dice rolling popup.
+ * Backwards compatible wrapper for DiceModal class.
+ */
+export function openDicePopup() {
+    if (diceModal) {
+        diceModal.open();
     }
 }
 
 /**
- * Updates an existing field
- * @param {string} fieldId - Field ID
- * @param {string} name - New name
- * @param {string} prompt - New prompt
- * @param {string} type - New type
- * @param {string} value - New value
+ * Closes the dice rolling popup.
+ * Backwards compatible wrapper for DiceModal class.
  */
-function updateField(fieldId, name, prompt, type, value) {
-    const field = findFieldById(fieldId);
-    if (field) {
-        field.name = name;
-        field.prompt = prompt;
-        field.type = type;
-        field.value = value;
-        saveSettings();
-        saveChatData();
-
-        // Re-render the tracker
-        import('../rendering/tracker.js').then(module => {
-            module.renderTracker();
-        });
+export function closeDicePopup() {
+    if (diceModal) {
+        diceModal.close();
     }
 }
 
 /**
- * Helper functions for finding elements
+ * Opens the settings popup.
+ * Backwards compatible wrapper for SettingsModal class.
  */
-
-function findSectionById(sectionId) {
-    return extensionSettings.trackerData.sections.find(section => section.id === sectionId);
+export function openSettingsPopup() {
+    if (settingsModal) {
+        settingsModal.open();
+    }
 }
 
-function findSubsectionById(subsectionId) {
-    for (const section of extensionSettings.trackerData.sections) {
-        const subsection = section.subsections.find(sub => sub.id === subsectionId);
-        if (subsection) return subsection;
+/**
+ * Closes the settings popup.
+ * Backwards compatible wrapper for SettingsModal class.
+ */
+export function closeSettingsPopup() {
+    if (settingsModal) {
+        settingsModal.close();
     }
-    return null;
 }
 
-function findFieldById(fieldId) {
-    for (const section of extensionSettings.trackerData.sections) {
-        for (const subsection of section.subsections) {
-            const field = subsection.fields.find(f => f.id === fieldId);
-            if (field) return field;
-        }
+/**
+ * @deprecated Legacy function - use diceModal._applyCustomTheme() instead
+ */
+export function applyCustomThemeToPopup() {
+    if (diceModal) {
+        diceModal._applyCustomTheme();
     }
-    return null;
+}
+
+/**
+ * Clears the last dice roll.
+ * Backwards compatible wrapper for dice module.
+ */
+export function clearDiceRoll() {
+    clearDiceRollCore();
+}
+
+/**
+ * Updates the dice display in the sidebar.
+ * Backwards compatible wrapper for dice module.
+ */
+export function updateDiceDisplay() {
+    updateDiceDisplayCore();
+}
+
+/**
+ * Adds the Roll Dice quick reply button.
+ * Backwards compatible wrapper for dice module.
+ */
+export function addDiceQuickReply() {
+    addDiceQuickReplyCore();
+}
+
+/**
+ * Returns the SettingsModal instance for external use
+ * @returns {SettingsModal} The global SettingsModal instance
+ */
+export function getSettingsModal() {
+    return settingsModal;
 }

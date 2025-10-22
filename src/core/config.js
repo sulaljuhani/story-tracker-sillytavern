@@ -14,10 +14,13 @@ const isUserExtension = currentScriptPath.includes('/data/') || currentScriptPat
 export const extensionFolderPath = isUserExtension
     ? `data/default-user/extensions/${extensionName}`
     : `scripts/extensions/${extensionName}`;
+
 export const extensionDisplayName = 'Story Tracker';
 export const extensionVersion = '1.0.0';
 
-// Default settings structure
+/**
+ * Default extension settings
+ */
 export const defaultSettings = {
     enabled: true,
     autoUpdate: true,

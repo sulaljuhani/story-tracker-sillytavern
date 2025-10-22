@@ -1,206 +1,336 @@
 /**
  * SillyTavern Integration Module
- * Handles integration with SillyTavern's event system and UI
+ * Handles all event listeners and integration with SillyTavern's event system
  */
 
-import { eventSource, event_types, chat_metadata } from '../../../../../script.js';
-import { extensionSettings, setCommittedTrackerData, lastActionWasSwipe, setLastActionWasSwipe } from '../../core/state.js';
-import { loadChatData, saveChatData, updateMessageSwipeData } from '../../core/persistence.js';
-import { shouldAutoUpdate } from '../../core/events.js';
-import { updateTrackerData, shouldTriggerUpdate } from '../generation/apiClient.js';
+import { getContext } from '../../../../../../extensions.js';
+import { chat, user_avatar, setExtensionPrompt, extension_prompt_types } from '../../../../../../../script.js';
 
-// Type imports
-/** @typedef {import('../../types/tracker.js').TrackerData} TrackerData */
+// Core modules
+import {
+    extensionSettings,
+    lastGeneratedData,
+    committedTrackerData,
+    lastActionWasSwipe,
+    isPlotProgression,
+    setLastActionWasSwipe,
+    setIsPlotProgression,
+    updateLastGeneratedData,
+    updateCommittedTrackerData
+} from '../../core/state.js';
+import { saveChatData, loadChatData } from '../../core/persistence.js';
 
-/**
- * Handles message sent events
- * @param {Object} eventData - Event data
- */
-export async function onMessageSent(eventData) {
-    try {
-        console.log('[Story Tracker] Message sent event');
+// Generation & Parsing
+import { parseResponse, parseUserStats } from '../generation/parser.js';
+import { updateRPGData } from '../generation/apiClient.js';
 
-        // Reset swipe flag
-        setLastActionWasSwipe(false);
+// Rendering
+import { renderUserStats } from '../rendering/userStats.js';
+import { renderInfoBox } from '../rendering/infoBox.js';
+import { renderThoughts, updateChatThoughts } from '../rendering/thoughts.js';
+import { renderInventory } from '../rendering/inventory.js';
 
-        // Trigger auto-update if enabled
-        if (shouldAutoUpdate()) {
-            console.log('[Story Tracker] Triggering auto-update after message sent');
-            await updateTrackerData();
-        }
-    } catch (error) {
-        console.error('[Story Tracker] Error in onMessageSent:', error);
-    }
-}
-
-/**
- * Handles message received events
- * @param {Object} eventData - Event data
- */
-export async function onMessageReceived(eventData) {
-    console.log('[Story Tracker] Message received event');
-
-    // For "together" mode, the tracker data might be embedded in the response
-    // This would be handled by the injector module if implemented
-    if (extensionSettings.generationMode === 'together') {
-        // Parse and update tracker data from the response
-        // This is a placeholder for future implementation
-        console.log('[Story Tracker] Together mode: checking for embedded tracker data');
-    }
-}
+// Utils
+import { getSafeThumbnailUrl } from '../../utils/avatars.js';
 
 /**
- * Handles character change events
- * @param {Object} eventData - Event data
- */
-export function onCharacterChanged(eventData) {
-    console.log('[Story Tracker] Character changed, loading chat data');
-    loadChatData();
-}
-
-/**
- * Handles message swipe events
- * @param {Object} eventData - Event data
- */
-export function onMessageSwiped(eventData) {
-    console.log('[Story Tracker] Message swiped');
-
-    // Set swipe flag
-    setLastActionWasSwipe(true);
-
-    // Load tracker data for the swiped message if available
-    // This would require integration with SillyTavern's message metadata
-    const messageIndex = eventData?.messageIndex;
-    if (messageIndex !== undefined) {
-        updateMessageSwipeData(messageIndex);
-    }
-}
-
-/**
- * Commits tracker data to be used for next generation
+ * Commits the tracker data from the last assistant message to be used as source for next generation.
+ * This should be called when the user has replied to a message, ensuring all swipes of the next
+ * response use the same committed context.
  */
 export function commitTrackerData() {
-    console.log('[Story Tracker] Committing tracker data');
-    setCommittedTrackerData(extensionSettings.trackerData);
-    saveChatData();
+    const chat = getContext().chat;
+    if (!chat || chat.length === 0) {
+        return;
+    }
+
+    // Find the last assistant message
+    for (let i = chat.length - 1; i >= 0; i--) {
+        const message = chat[i];
+        if (!message.is_user) {
+            // Found last assistant message - commit its tracker data
+            if (message.extra && message.extra.rpg_companion_swipes) {
+                const swipeId = message.swipe_id || 0;
+                const swipeData = message.extra.rpg_companion_swipes[swipeId];
+
+                if (swipeData) {
+                    // console.log('[RPG Companion] Committing tracker data from assistant message at index', i, 'swipe', swipeId);
+                    committedTrackerData.userStats = swipeData.userStats || null;
+                    committedTrackerData.infoBox = swipeData.infoBox || null;
+                    committedTrackerData.characterThoughts = swipeData.characterThoughts || null;
+                } else {
+                    // console.log('[RPG Companion] No swipe data found for swipe', swipeId);
+                }
+            } else {
+                // console.log('[RPG Companion] No RPG data found in last assistant message');
+            }
+            break;
+        }
+    }
 }
 
 /**
- * Updates persona avatar display
+ * Event handler for when the user sends a message.
+ * Sets the flag to indicate this is NOT a swipe.
+ */
+export function onMessageSent() {
+    if (!extensionSettings.enabled) return;
+
+    // User sent a new message - NOT a swipe
+    setLastActionWasSwipe(false);
+    // console.log('[RPG Companion] 🟢 EVENT: onMessageSent - lastActionWasSwipe =', lastActionWasSwipe);
+}
+
+/**
+ * Event handler for when a message is generated.
+ */
+export async function onMessageReceived(data) {
+    if (!extensionSettings.enabled) {
+        return;
+    }
+
+    if (extensionSettings.generationMode === 'together') {
+        // In together mode, parse the response to extract RPG data
+        // The message should be in chat[chat.length - 1]
+        const lastMessage = chat[chat.length - 1];
+        if (lastMessage && !lastMessage.is_user) {
+            const responseText = lastMessage.mes;
+            // console.log('[RPG Companion] Parsing together mode response:', responseText);
+
+            const parsedData = parseResponse(responseText);
+
+            // Update stored data
+            if (parsedData.userStats) {
+                lastGeneratedData.userStats = parsedData.userStats;
+                parseUserStats(parsedData.userStats);
+            }
+            if (parsedData.infoBox) {
+                lastGeneratedData.infoBox = parsedData.infoBox;
+            }
+            if (parsedData.characterThoughts) {
+                lastGeneratedData.characterThoughts = parsedData.characterThoughts;
+            }
+
+            // Store RPG data for this specific swipe in the message's extra field
+            if (!lastMessage.extra) {
+                lastMessage.extra = {};
+            }
+            if (!lastMessage.extra.rpg_companion_swipes) {
+                lastMessage.extra.rpg_companion_swipes = {};
+            }
+
+            const currentSwipeId = lastMessage.swipe_id || 0;
+            lastMessage.extra.rpg_companion_swipes[currentSwipeId] = {
+                userStats: parsedData.userStats,
+                infoBox: parsedData.infoBox,
+                characterThoughts: parsedData.characterThoughts
+            };
+
+            // console.log('[RPG Companion] Stored RPG data for swipe', currentSwipeId);
+
+            // If there's no committed data yet (first time generating), automatically commit
+            if (!committedTrackerData.userStats && !committedTrackerData.infoBox && !committedTrackerData.characterThoughts) {
+                committedTrackerData.userStats = parsedData.userStats;
+                committedTrackerData.infoBox = parsedData.infoBox;
+                committedTrackerData.characterThoughts = parsedData.characterThoughts;
+                // console.log('[RPG Companion] 🔆 FIRST TIME: Auto-committed tracker data');
+            } else {
+                // console.log('[RPG Companion] Data will be committed when user replies');
+            }
+
+            // Remove the tracker code blocks from the visible message
+            let cleanedMessage = responseText;
+            // Remove all code blocks that contain tracker data
+            cleanedMessage = cleanedMessage.replace(/```[^`]*?Stats\s*\n\s*---[^`]*?```\s*/gi, '');
+            cleanedMessage = cleanedMessage.replace(/```[^`]*?Info Box\s*\n\s*---[^`]*?```\s*/gi, '');
+            cleanedMessage = cleanedMessage.replace(/```[^`]*?Present Characters\s*\n\s*---[^`]*?```\s*/gi, '');
+            // Remove any stray "---" dividers that might appear after the code blocks
+            cleanedMessage = cleanedMessage.replace(/^\s*---\s*$/gm, '');
+            // Clean up multiple consecutive newlines
+            cleanedMessage = cleanedMessage.replace(/\n{3,}/g, '\n\n');
+
+            // Update the message in chat history
+            lastMessage.mes = cleanedMessage.trim();
+
+            // Update the swipe text as well
+            if (lastMessage.swipes && lastMessage.swipes[currentSwipeId] !== undefined) {
+                lastMessage.swipes[currentSwipeId] = cleanedMessage.trim();
+            }
+
+            // console.log('[RPG Companion] Cleaned message, removed tracker code blocks');
+
+            // Render the updated data
+            renderUserStats();
+            renderInfoBox();
+            renderThoughts();
+            renderInventory();
+
+            // Save to chat metadata
+            saveChatData();
+        }
+    } else if (extensionSettings.generationMode === 'separate' && extensionSettings.autoUpdate) {
+        // In separate mode with auto-update, trigger update after message
+        setTimeout(async () => {
+            await updateRPGData(renderUserStats, renderInfoBox, renderThoughts, renderInventory);
+        }, 500);
+    }
+
+    // Reset the swipe flag after generation completes
+    // This ensures that if the user swiped → auto-reply generated → flag is now cleared
+    // so the next user message will be treated as a new message (not a swipe)
+    if (lastActionWasSwipe) {
+        // console.log('[RPG Companion] 🔄 Generation complete after swipe - resetting lastActionWasSwipe to false');
+        setLastActionWasSwipe(false);
+    }
+
+    // Clear plot progression flag if this was a plot progression generation
+    // Note: No need to clear extension prompt since we used quiet_prompt option
+    if (isPlotProgression) {
+        setIsPlotProgression(false);
+        // console.log('[RPG Companion] Plot progression generation completed');
+    }
+}
+
+/**
+ * Event handler for character change.
+ */
+export function onCharacterChanged() {
+    // Remove thought panel and icon when changing characters
+    $('#rpg-thought-panel').remove();
+    $('#rpg-thought-icon').remove();
+    $('#chat').off('scroll.thoughtPanel');
+    $(window).off('resize.thoughtPanel');
+    $(document).off('click.thoughtPanel');
+
+    // Load chat-specific data when switching chats
+    loadChatData();
+
+    // Commit tracker data from the last assistant message to initialize for this chat
+    commitTrackerData();
+
+    // Re-render with the loaded data
+    renderUserStats();
+    renderInfoBox();
+    renderThoughts();
+    renderInventory();
+
+    // Update chat thought overlays
+    updateChatThoughts();
+}
+
+/**
+ * Event handler for when a message is swiped.
+ * Loads the RPG data for the swipe the user navigated to.
+ */
+export function onMessageSwiped(messageIndex) {
+    if (!extensionSettings.enabled) {
+        return;
+    }
+
+    // console.log('[RPG Companion] Message swiped at index:', messageIndex);
+
+    // Get the message that was swiped
+    const message = chat[messageIndex];
+    if (!message || message.is_user) {
+        return;
+    }
+
+    const currentSwipeId = message.swipe_id || 0;
+
+    // Only set flag to true if this swipe will trigger a NEW generation
+    // Check if the swipe already exists (has content in the swipes array)
+    const isExistingSwipe = message.swipes &&
+                           message.swipes[currentSwipeId] !== undefined &&
+                           message.swipes[currentSwipeId] !== null &&
+                           message.swipes[currentSwipeId].length > 0;
+
+    if (!isExistingSwipe) {
+        // This is a NEW swipe that will trigger generation
+        setLastActionWasSwipe(true);
+        // console.log('[RPG Companion] 🔵 EVENT: onMessageSwiped (NEW generation) - lastActionWasSwipe =', lastActionWasSwipe);
+    } else {
+        // This is navigating to an EXISTING swipe - don't change the flag
+        // console.log('[RPG Companion] 🔵 EVENT: onMessageSwiped (existing swipe navigation) - lastActionWasSwipe unchanged =', lastActionWasSwipe);
+    }
+
+    // console.log('[RPG Companion] Loading data for swipe', currentSwipeId);
+
+    // Load RPG data for this swipe into lastGeneratedData (for display only)
+    // This updates what the user sees, but does NOT commit it
+    // Committed data will be updated when/if the user replies to this swipe
+    if (message.extra && message.extra.rpg_companion_swipes && message.extra.rpg_companion_swipes[currentSwipeId]) {
+        const swipeData = message.extra.rpg_companion_swipes[currentSwipeId];
+
+        // Update display data
+        lastGeneratedData.userStats = swipeData.userStats || null;
+        lastGeneratedData.infoBox = swipeData.infoBox || null;
+        lastGeneratedData.characterThoughts = swipeData.characterThoughts || null;
+
+        // Parse user stats if available
+        if (swipeData.userStats) {
+            parseUserStats(swipeData.userStats);
+        }
+
+        // console.log('[RPG Companion] Loaded RPG data for swipe', currentSwipeId, '(display only, NOT committed)');
+        // console.log('[RPG Companion] committedTrackerData unchanged - will be updated if user replies to this swipe');
+    } else {
+        // No data for this swipe - keep existing lastGeneratedData (don't clear it)
+        // This ensures the display remains consistent and data is available for next commit
+        // console.log('[RPG Companion] No RPG data for swipe', currentSwipeId, '- keeping existing lastGeneratedData');
+    }
+
+    // Re-render the panels (display only - committedTrackerData unchanged)
+    renderUserStats();
+    renderInfoBox();
+    renderThoughts();
+    renderInventory();
+
+    // Update chat thought overlays
+    updateChatThoughts();
+}
+
+/**
+ * Update the persona avatar image when user switches personas
  */
 export function updatePersonaAvatar() {
-    // This could be used to update avatar displays if needed
-    console.log('[Story Tracker] Persona avatar updated');
+    const portraitImg = document.querySelector('.rpg-user-portrait');
+    if (!portraitImg) {
+        // console.log('[RPG Companion] Portrait image element not found in DOM');
+        return;
+    }
+
+    // Get current user_avatar from context instead of using imported value
+    const context = getContext();
+    const currentUserAvatar = context.user_avatar || user_avatar;
+
+    // console.log('[RPG Companion] Attempting to update persona avatar:', currentUserAvatar);
+
+    // Try to get a valid thumbnail URL using our safe helper
+    if (currentUserAvatar) {
+        const thumbnailUrl = getSafeThumbnailUrl('persona', currentUserAvatar);
+
+        if (thumbnailUrl) {
+            // Only update the src if we got a valid URL
+            portraitImg.src = thumbnailUrl;
+            // console.log('[RPG Companion] Persona avatar updated successfully');
+        } else {
+            // Don't update the src if we couldn't get a valid URL
+            // This prevents 400 errors and keeps the existing image
+            // console.warn('[RPG Companion] Could not get valid thumbnail URL for persona avatar, keeping existing image');
+        }
+    } else {
+        // console.log('[RPG Companion] No user avatar configured, keeping existing image');
+    }
 }
 
 /**
- * Clears extension prompts (for when extension is disabled)
+ * Clears all extension prompts.
  */
 export function clearExtensionPrompts() {
-    // Clear any extension prompts that might have been set
-    console.log('[Story Tracker] Clearing extension prompts');
-}
-
-/**
- * Gets current chat metadata
- * @returns {Object|null} Chat metadata
- */
-export function getCurrentChatMetadata() {
-    try {
-        return chat_metadata || null;
-    } catch (error) {
-        console.error('[Story Tracker] Error getting chat metadata:', error);
-        return null;
-    }
-}
-
-/**
- * Sets chat metadata
- * @param {Object} metadata - Metadata to set
- */
-export function setChatMetadata(metadata) {
-    try {
-        if (chat_metadata) {
-            Object.assign(chat_metadata, metadata);
-        }
-    } catch (error) {
-        console.error('[Story Tracker] Error setting chat metadata:', error);
-    }
-}
-
-/**
- * Gets tracker data from chat metadata
- * @returns {TrackerData|null} Tracker data from metadata
- */
-export function getTrackerDataFromMetadata() {
-    const metadata = getCurrentChatMetadata();
-    if (metadata && metadata['story-tracker']) {
-        return metadata['story-tracker'];
-    }
-    return null;
-}
-
-/**
- * Sets tracker data in chat metadata
- * @param {TrackerData} trackerData - Tracker data to store
- */
-export function setTrackerDataInMetadata(trackerData) {
-    const metadata = getCurrentChatMetadata();
-    if (metadata) {
-        metadata['story-tracker'] = trackerData;
-        setChatMetadata(metadata);
-    }
-}
-
-/**
- * Handles chat load events
- */
-export function onChatLoaded() {
-    console.log('[Story Tracker] Chat loaded, initializing tracker data');
-    loadChatData();
-}
-
-/**
- * Handles chat save events
- */
-export function onChatSaved() {
-    console.log('[Story Tracker] Chat saved');
-    saveChatData();
-}
-
-/**
- * Gets the current message count for context depth
- * @returns {number} Number of messages in current chat
- */
-export function getCurrentMessageCount() {
-    try {
-        // This would need to be implemented based on SillyTavern's chat structure
-        return 0; // Placeholder
-    } catch (error) {
-        console.error('[Story Tracker] Error getting message count:', error);
-        return 0;
-    }
-}
-
-/**
- * Checks if the current chat has any messages
- * @returns {boolean} Whether the chat has messages
- */
-export function hasChatMessages() {
-    return getCurrentMessageCount() > 0;
-}
-
-/**
- * Gets the last N messages for context
- * @param {number} count - Number of messages to get
- * @returns {Array} Array of message objects
- */
-export function getLastMessages(count) {
-    try {
-        // This would need to be implemented based on SillyTavern's chat structure
-        return []; // Placeholder
-    } catch (error) {
-        console.error('[Story Tracker] Error getting last messages:', error);
-        return [];
-    }
+    setExtensionPrompt('rpg-companion-inject', '', extension_prompt_types.IN_CHAT, 0, false);
+    setExtensionPrompt('rpg-companion-example', '', extension_prompt_types.IN_CHAT, 0, false);
+    setExtensionPrompt('rpg-companion-html', '', extension_prompt_types.IN_CHAT, 0, false);
+    setExtensionPrompt('rpg-companion-context', '', extension_prompt_types.IN_CHAT, 1, false);
+    // Note: rpg-companion-plot is not cleared here since it's passed via quiet_prompt option
+    // console.log('[RPG Companion] Cleared all extension prompts');
 }

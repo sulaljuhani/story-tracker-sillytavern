@@ -3,57 +3,135 @@
  * Handles parsing of AI responses to extract tracker data
  */
 
-import { extensionSettings, updateExtensionSettings, setLastGeneratedData, setCommittedTrackerData } from '../../core/state.js';
-import { saveSettings, saveChatData } from '../../core/persistence.js';
-
-// Type imports
-/** @typedef {import('../../types/tracker.js').TrackerData} TrackerData */
-/** @typedef {import('../../types/tracker.js').TrackerSection} TrackerSection */
-/** @typedef {import('../../types/tracker.js').TrackerSubsection} TrackerSubsection */
-/** @typedef {import('../../types/tracker.js').TrackerField} TrackerField */
+import { extensionSettings, FEATURE_FLAGS } from '../../core/state.js';
+import { saveSettings } from '../../core/persistence.js';
+import { extractInventory } from './inventoryParser.js';
 
 /**
- * Parses the AI response to extract updated tracker data
+ * Parses the model response to extract the different data sections.
+ * Extracts tracker data from markdown code blocks in the AI response.
+ *
  * @param {string} responseText - The raw AI response text
- * @returns {TrackerData|null} Parsed tracker data or null if parsing failed
+ * @returns {{userStats: string|null, infoBox: string|null, characterThoughts: string|null}} Parsed tracker data
  */
-export function parseTrackerResponse(responseText) {
+export function parseResponse(responseText) {
+    const result = {
+        userStats: null,
+        infoBox: null,
+        characterThoughts: null
+    };
+
+    // Extract code blocks
+    const codeBlockRegex = /```([^`]+)```/g;
+    const matches = [...responseText.matchAll(codeBlockRegex)];
+
+    // console.log('[RPG Companion] Found', matches.length, 'code blocks');
+
+    for (const match of matches) {
+        const content = match[1].trim();
+
+        // console.log('[RPG Companion] Checking code block (first 200 chars):', content.substring(0, 200));
+
+        // Match Stats section
+        if (content.match(/Stats\s*\n\s*---/i)) {
+            result.userStats = content;
+            // console.log('[RPG Companion] ✓ Found Stats section');
+        }
+        // Match Info Box section
+        else if (content.match(/Info Box\s*\n\s*---/i)) {
+            result.infoBox = content;
+            // console.log('[RPG Companion] ✓ Found Info Box section');
+        }
+        // Match Present Characters section - flexible matching
+        else if (content.match(/Present Characters\s*\n\s*---/i) || content.includes(" | ")) {
+            result.characterThoughts = content;
+            // console.log('[RPG Companion] ✓ Found Present Characters section:', content);
+        } else {
+            // console.log('[RPG Companion] ✗ Code block did not match any section');
+        }
+    }
+
+    // console.log('[RPG Companion] Parse results:', {
+    //     hasStats: !!result.userStats,
+    //     hasInfoBox: !!result.infoBox,
+    //     hasThoughts: !!result.characterThoughts
+    // });
+
+    return result;
+}
+
+/**
+ * Parses user stats from the text and updates the extensionSettings.
+ * Extracts percentages, mood, conditions, and inventory from the stats text.
+ *
+ * @param {string} statsText - The raw stats text from AI response
+ */
+export function parseUserStats(statsText) {
     try {
-        // Extract code blocks from response
-        const codeBlocks = extractCodeBlocks(responseText);
+        // Extract percentages and mood/conditions
+        const healthMatch = statsText.match(/Health:\s*(\d+)%/);
+        const satietyMatch = statsText.match(/Satiety:\s*(\d+)%/);
+        const energyMatch = statsText.match(/Energy:\s*(\d+)%/);
+        const hygieneMatch = statsText.match(/Hygiene:\s*(\d+)%/);
+        const arousalMatch = statsText.match(/Arousal:\s*(\d+)%/);
 
-        if (codeBlocks.length === 0) {
-            console.warn('[Story Tracker] No code blocks found in response');
-            return null;
+        // Match new format: Status: [Emoji, Conditions]
+        // Also support legacy format: [Emoji]: [Conditions] for backward compatibility
+        let moodMatch = null;
+        const statusMatch = statsText.match(/Status:\s*(.+?),\s*(.+)/i);
+        if (statusMatch) {
+            // New format: Status: [Emoji, Conditions]
+            moodMatch = [null, statusMatch[1].trim(), statusMatch[2].trim()];
+        } else {
+            // Legacy format: [Emoji]: [Conditions]
+            const lines = statsText.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                // Skip lines with percentages or "Inventory:" or "Status:"
+                if (line.includes('%') || line.toLowerCase().startsWith('inventory:') || line.toLowerCase().startsWith('status:')) continue;
+                // Match emoji followed by colon and conditions
+                const match = line.match(/^(.+?):\s*(.+)$/);
+                if (match) {
+                    moodMatch = match;
+                    break;
+                }
+            }
         }
 
-        // Find the tracker update block
-        const trackerBlock = findTrackerBlock(codeBlocks);
-        if (!trackerBlock) {
-            console.warn('[Story Tracker] No tracker update block found');
-            return null;
+        // Extract inventory - use v2 parser if feature flag enabled, otherwise fallback to v1
+        if (FEATURE_FLAGS.useNewInventory) {
+            const inventoryData = extractInventory(statsText);
+            if (inventoryData) {
+                extensionSettings.userStats.inventory = inventoryData;
+            }
+        } else {
+            // Legacy v1 parsing for backward compatibility
+            const inventoryMatch = statsText.match(/Inventory:\s*(.+)/i);
+            if (inventoryMatch) {
+                extensionSettings.userStats.inventory = inventoryMatch[1].trim();
+            }
         }
 
-        // Parse the tracker data
-        const parsedData = parseTrackerBlock(trackerBlock);
-        if (!parsedData) {
-            console.warn('[Story Tracker] Failed to parse tracker block');
-            return null;
+        if (healthMatch) extensionSettings.userStats.health = parseInt(healthMatch[1]);
+        if (satietyMatch) extensionSettings.userStats.satiety = parseInt(satietyMatch[1]);
+        if (energyMatch) extensionSettings.userStats.energy = parseInt(energyMatch[1]);
+        if (hygieneMatch) extensionSettings.userStats.hygiene = parseInt(hygieneMatch[1]);
+        if (arousalMatch) extensionSettings.userStats.arousal = parseInt(arousalMatch[1]);
+        if (moodMatch) {
+            extensionSettings.userStats.mood = moodMatch[1].trim(); // Emoji
+            extensionSettings.userStats.conditions = moodMatch[2].trim(); // Conditions
         }
 
-        console.log('[Story Tracker] Successfully parsed tracker data');
-        return parsedData;
-
+        saveSettings();
     } catch (error) {
-        console.error('[Story Tracker] Error parsing tracker response:', error);
-        return null;
+        console.error('[RPG Companion] Error parsing user stats:', error);
     }
 }
 
 /**
- * Extracts code blocks from text
+ * Helper: Extract code blocks from text
  * @param {string} text - Text containing markdown code blocks
- * @returns {string[]} Array of code block contents
+ * @returns {Array<string>} Array of code block contents
  */
 export function extractCodeBlocks(text) {
     const codeBlockRegex = /```([^`]+)```/g;
@@ -62,189 +140,28 @@ export function extractCodeBlocks(text) {
 }
 
 /**
- * Finds the tracker update block from code blocks
- * @param {string[]} codeBlocks - Array of code block contents
- * @returns {string|null} Tracker block content or null
+ * Helper: Parse stats section from code block content
+ * @param {string} content - Code block content
+ * @returns {boolean} True if this is a stats section
  */
-export function findTrackerBlock(codeBlocks) {
-    for (const block of codeBlocks) {
-        if (block.includes('Story Tracker Update') || block.includes('Section:')) {
-            return block;
-        }
-    }
-    return null;
+export function isStatsSection(content) {
+    return content.match(/Stats\s*\n\s*---/i) !== null;
 }
 
 /**
- * Parses a tracker block into structured data
- * @param {string} block - The tracker block content
- * @returns {TrackerData|null} Parsed tracker data
+ * Helper: Parse info box section from code block content
+ * @param {string} content - Code block content
+ * @returns {boolean} True if this is an info box section
  */
-export function parseTrackerBlock(block) {
-    const lines = block.split('\n').map(line => line.trim()).filter(line => line);
-
-    const trackerData = {
-        sections: []
-    };
-
-    let currentSection = null;
-    let currentSubsection = null;
-
-    for (const line of lines) {
-        // Skip header lines
-        if (line === 'Story Tracker Update' || line === '---') {
-            continue;
-        }
-
-        // Parse section header
-        const sectionMatch = line.match(/^Section:\s*(.+)$/);
-        if (sectionMatch) {
-            currentSection = {
-                id: generateSectionId(sectionMatch[1]),
-                name: sectionMatch[1],
-                subsections: [],
-                collapsed: false
-            };
-            trackerData.sections.push(currentSection);
-            currentSubsection = null;
-            continue;
-        }
-
-        // Parse subsection header
-        const subsectionMatch = line.match(/^\s*Subsection:\s*(.+)$/);
-        if (subsectionMatch && currentSection) {
-            currentSubsection = {
-                id: generateSubsectionId(subsectionMatch[1]),
-                name: subsectionMatch[1],
-                fields: [],
-                collapsed: false
-            };
-            currentSection.subsections.push(currentSubsection);
-            continue;
-        }
-
-        // Parse field
-        const fieldMatch = line.match(/^\s{4}(.+?):\s*(.+)$/);
-        if (fieldMatch && currentSubsection) {
-            const fieldName = fieldMatch[1];
-            const fieldValue = fieldMatch[2];
-
-            // Find existing field or create new one
-            let existingField = findFieldByName(currentSubsection.fields, fieldName);
-            if (existingField) {
-                existingField.value = fieldValue;
-            } else {
-                // Create new field (this shouldn't normally happen in updates)
-                const newField = {
-                    id: generateFieldId(fieldName),
-                    name: fieldName,
-                    value: fieldValue,
-                    prompt: '', // Will be filled from existing data
-                    type: 'text',
-                    enabled: true
-                };
-                currentSubsection.fields.push(newField);
-            }
-        }
-    }
-
-    return trackerData.sections.length > 0 ? trackerData : null;
+export function isInfoBoxSection(content) {
+    return content.match(/Info Box\s*\n\s*---/i) !== null;
 }
 
 /**
- * Updates the tracker data with parsed results
- * @param {TrackerData} parsedData - The parsed tracker data from AI
- * @returns {boolean} Success status
+ * Helper: Parse character thoughts section from code block content
+ * @param {string} content - Code block content
+ * @returns {boolean} True if this is a character thoughts section
  */
-export function updateTrackerData(parsedData) {
-    try {
-        if (!parsedData || !parsedData.sections) {
-            return false;
-        }
-
-        // Update existing tracker data with new values
-        for (const newSection of parsedData.sections) {
-            const existingSection = findSectionByName(extensionSettings.trackerData.sections, newSection.name);
-            if (existingSection) {
-                // Update existing section
-                for (const newSubsection of newSection.subsections) {
-                    const existingSubsection = findSubsectionByName(existingSection.subsections, newSubsection.name);
-                    if (existingSubsection) {
-                        // Update existing subsection fields
-                        for (const newField of newSubsection.fields) {
-                            const existingField = findFieldByName(existingSubsection.fields, newField.name);
-                            if (existingField) {
-                                existingField.value = newField.value;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Update state
-        setLastGeneratedData(parsedData);
-        setCommittedTrackerData(extensionSettings.trackerData);
-
-        // Save changes
-        saveSettings();
-        saveChatData();
-
-        console.log('[Story Tracker] Tracker data updated successfully');
-        return true;
-
-    } catch (error) {
-        console.error('[Story Tracker] Error updating tracker data:', error);
-        return false;
-    }
-}
-
-/**
- * Helper functions for finding existing elements
- */
-
-/**
- * Finds a section by name
- * @param {TrackerSection[]} sections - Array of sections
- * @param {string} name - Section name to find
- * @returns {TrackerSection|null} Found section or null
- */
-function findSectionByName(sections, name) {
-    return sections.find(section => section.name === name) || null;
-}
-
-/**
- * Finds a subsection by name
- * @param {TrackerSubsection[]} subsections - Array of subsections
- * @param {string} name - Subsection name to find
- * @returns {TrackerSubsection|null} Found subsection or null
- */
-function findSubsectionByName(subsections, name) {
-    return subsections.find(subsection => subsection.name === name) || null;
-}
-
-/**
- * Finds a field by name
- * @param {TrackerField[]} fields - Array of fields
- * @param {string} name - Field name to find
- * @returns {TrackerField|null} Found field or null
- */
-function findFieldByName(fields, name) {
-    return fields.find(field => field.name === name) || null;
-}
-
-/**
- * ID generation helpers
- */
-
-function generateSectionId(name) {
-    return `section_${name.toLowerCase().replace(/\s+/g, '_')}`;
-}
-
-function generateSubsectionId(name) {
-    return `subsection_${name.toLowerCase().replace(/\s+/g, '_')}`;
-}
-
-function generateFieldId(name) {
-    return `field_${name.toLowerCase().replace(/\s+/g, '_')}`;
+export function isCharacterThoughtsSection(content) {
+    return content.match(/Present Characters\s*\n\s*---/i) !== null || content.includes(" | ");
 }
