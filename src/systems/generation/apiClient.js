@@ -14,7 +14,7 @@ import {
 } from '../../core/state.js';
 import { saveChatData } from '../../core/persistence.js';
 import { generateSeparateUpdatePrompt } from './promptBuilder.js';
-import { parseResponse, parseUserStats } from './parser.js';
+import { parseResponse } from './parser.js';
 
 // Store the original preset name to restore after tracker generation
 let originalPresetName = null;
