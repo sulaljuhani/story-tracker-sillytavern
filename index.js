@@ -62,7 +62,7 @@ function addExtensionSettings() {
         </div>
     `;
 
-    $('#extensions_settings2').append(settingsHtml);
+    $('#extensions_settings').append(settingsHtml);
 
     // Set up the enable/disable toggle
     $('#story-tracker-enabled').prop('checked', extensionSettings.enabled).on('change', function() {
