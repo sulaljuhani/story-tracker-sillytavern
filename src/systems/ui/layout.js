@@ -302,11 +302,12 @@ export function setupAddSectionButton() {
 }
 
 /**
- * Shows add section modal (placeholder)
+ * Shows add section modal
  */
 function showAddSectionModal() {
-    // TODO: Implement modal for adding section
-    console.log('Add section modal');
+    import('../ui/modals.js').then(module => {
+        module.showAddSectionModal();
+    });
 }
 
 /**

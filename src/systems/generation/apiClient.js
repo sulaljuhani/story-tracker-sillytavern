@@ -6,7 +6,7 @@
 import { generateRaw, getRequestHeaders } from '../../../../../script.js';
 import { extensionSettings, setIsGenerating, isGenerating } from '../../core/state.js';
 import { generateTrackerPrompt, generateSeparateUpdatePrompt } from './promptBuilder.js';
-import { parseTrackerResponse, updateTrackerData } from './parser.js';
+import { parseTrackerResponse, updateTrackerData as applyTrackerUpdate } from './parser.js';
 
 // Type imports
 /** @typedef {import('../../types/tracker.js').TrackerUpdateResult} TrackerUpdateResult */
@@ -51,7 +51,7 @@ export async function updateTrackerData(renderCallback = null) {
         }
 
         // Update the tracker data
-        const updateSuccess = updateTrackerData(parsedData);
+        const updateSuccess = applyTrackerUpdate(parsedData);
         if (!updateSuccess) {
             return { success: false, errors: ['Failed to update tracker data'] };
         }

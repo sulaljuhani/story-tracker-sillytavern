@@ -386,18 +386,21 @@ function deleteField(fieldId) {
  */
 
 function showAddSubsectionModal(sectionId) {
-    // TODO: Implement modal for adding subsection
-    console.log('Add subsection modal for section:', sectionId);
+    import('../ui/modals.js').then(module => {
+        module.showAddSubsectionModal(sectionId);
+    });
 }
 
 function showAddFieldModal(subsectionId) {
-    // TODO: Implement modal for adding field
-    console.log('Add field modal for subsection:', subsectionId);
+    import('../ui/modals.js').then(module => {
+        module.showAddFieldModal(subsectionId);
+    });
 }
 
 function showEditFieldModal(fieldId) {
-    // TODO: Implement modal for editing field
-    console.log('Edit field modal for field:', fieldId);
+    import('../ui/modals.js').then(module => {
+        module.showEditFieldModal(fieldId);
+    });
 }
 
 /**
