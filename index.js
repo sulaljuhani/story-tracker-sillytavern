@@ -7,7 +7,7 @@
 export { StoryTrackerLoader as default };
 
 import { getContext, renderExtensionTemplateAsync, extension_settings as st_extension_settings } from '../../../extensions.js';
-import { eventSource, event_types } from '../../../../script.js';
+import { eventSource, event_types } from '../../../../../script.js';
 
 // Core modules
 import { extensionName, extensionDisplayName } from './src/core/config.js';

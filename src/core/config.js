@@ -3,8 +3,17 @@
  * Extension metadata and constants
  */
 
-export const extensionName = 'story-tracker';
-export const extensionFolderPath = `extensions/${extensionName}`;
+export const extensionName = 'third-party/story-tracker-sillytavern';
+
+/**
+ * Dynamically determine extension path based on current location
+ * This supports both global (public/extensions) and user-specific (data/default-user/extensions) installations
+ */
+const currentScriptPath = import.meta.url;
+const isUserExtension = currentScriptPath.includes('/data/') || currentScriptPath.includes('\\data\\');
+export const extensionFolderPath = isUserExtension
+    ? `data/default-user/extensions/${extensionName}`
+    : `scripts/extensions/${extensionName}`;
 export const extensionDisplayName = 'Story Tracker';
 export const extensionVersion = '1.0.0';
 

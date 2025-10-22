@@ -3,7 +3,7 @@
  * Handles integration with SillyTavern's event system and UI
  */
 
-import { eventSource, event_types, chat_metadata } from '../../../../script.js';
+import { eventSource, event_types, chat_metadata } from '../../../../../script.js';
 import { extensionSettings, setCommittedTrackerData, lastActionWasSwipe, setLastActionWasSwipe } from '../../core/state.js';
 import { loadChatData, saveChatData, updateMessageSwipeData } from '../../core/persistence.js';
 import { shouldAutoUpdate } from '../../core/events.js';

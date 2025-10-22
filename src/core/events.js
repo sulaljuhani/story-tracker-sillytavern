@@ -3,7 +3,7 @@
  * Handles event registration and management
  */
 
-import { eventSource, event_types } from '../../../../script.js';
+import { eventSource, event_types } from '../../../../../script.js';
 import { extensionSettings } from './state.js';
 
 /**
