@@ -107,11 +107,25 @@ async function initUI() {
         await updateTrackerData(renderTracker);
     });
 
+    $('#story-tracker-collapse').on('click', function() {
+        // Toggle collapse state
+        const $panel = $('#story-tracker-panel');
+        const isCollapsed = $panel.hasClass('story-tracker-collapsed');
+        if (isCollapsed) {
+            $panel.removeClass('story-tracker-collapsed');
+        } else {
+            $panel.addClass('story-tracker-collapsed');
+        }
+    });
+
     // Setup mobile toggle button
     setupMobileToggle();
 
-    // Setup collapse/expand toggle button
-    setupCollapseToggle();
+    // Setup modal functionality
+    import('./src/systems/ui/modals.js').then(module => {
+        module.setupSettingsPopup();
+        module.setupFieldPopup();
+    });
 
     // Render initial data if available
     renderTracker();

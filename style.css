@@ -1,135 +1,454 @@
-/* Main Panel */
-.story-tracker-panel {
-    position: fixed;
-    top: var(--topBarBlockSize);
-    right: 0;
-    width: 300px;
-    height: calc(100vh - var(--topBarBlockSize));
-    background-color: #f0f0f0;
-    border-left: 1px solid #ccc;
-    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: #333;
-}
-
 /* Ensure chat stays centered when panel is visible */
-body:has(.story-tracker-panel) #sheld {
+body:has(.story-tracker-panel.story-tracker-position-right) #sheld {
     margin: auto !important;
 }
 
+body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
+    margin: auto !important;
+}
+/* ============================================
+   STORY TRACKER - GAME-LIKE UI - RESPONSIVE
+   ============================================ */
+
+/* CSS Variables for Theming - Default uses SillyTavern's variables */
+.story-tracker-panel {
+    --st-bg: var(--SmartThemeBlurTintColor, rgba(26, 26, 46, 0.9));
+    --st-accent: var(--black30a, rgba(22, 33, 62, 0.9));
+    --st-text: var(--SmartThemeBodyColor, #eaeaea);
+    --st-highlight: var(--SmartThemeQuoteColor, #e94560);
+    --st-border: var(--SmartThemeBorderColor, #0f3460);
+    --st-shadow: rgba(0, 0, 0, 0.5);
+}
+
+/* Main Panel Container - Fills available margin space */
+.story-tracker-panel {
+    position: fixed;
+    top: var(--topBarBlockSize);
+    bottom: 0;
+    background: var(--st-bg);
+    box-shadow: 0 0 20px var(--st-shadow);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    box-sizing: border-box;
+    z-index: 1000;
+    color: var(--st-text);
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    transition: width 0.3s ease, left 0.3s ease, right 0.3s ease, transform 0.3s ease;
+}
+
+/* Collapsed state - fixed width for collapse */
+.story-tracker-panel.story-tracker-collapsed {
+    max-width: 2.5rem !important;
+    min-width: 2.5rem !important;
+    left: auto !important;
+    right: auto !important;
+}
+
+.story-tracker-panel.story-tracker-collapsed.story-tracker-position-right {
+    right: 0 !important;
+}
+
+.story-tracker-panel.story-tracker-collapsed.story-tracker-position-left {
+    left: 0 !important;
+}
+
+/* Fix positioning when collapsed - panel should stick to correct edge */
+.story-tracker-panel.story-tracker-position-right.story-tracker-collapsed {
+    left: calc(100vw - 40px);
+    right: 0;
+}
+
+.story-tracker-panel.story-tracker-position-left.story-tracker-collapsed {
+    right: calc(100vw - 40px);
+    left: 0;
+}
+
+.story-tracker-panel.story-tracker-collapsed .story-tracker-content {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Collapse/Expand Toggle Button */
+#story-tracker-collapse {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.875rem;
+    height: 5rem;
+    background: var(--st-accent);
+    border: 2px solid var(--st-border);
+    color: var(--st-highlight);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+    transition: all 0.3s ease;
+    font-size: 1.5vw;
+    box-shadow: 0 0 10px var(--st-shadow);
+    pointer-events: auto;
+}
+
+#story-tracker-collapse:hover {
+    background: var(--st-highlight);
+    color: var(--st-bg);
+    box-shadow: 0 0 15px var(--st-highlight);
+}
+
+/* Position collapse button on the left side for right panel */
+.story-tracker-panel.story-tracker-position-right #story-tracker-collapse {
+    left: -2rem;
+    border-radius: 0.5em 0 0 0.5em;
+}
+
+/* Position collapse button on the right side for left panel */
+.story-tracker-panel.story-tracker-position-left #story-tracker-collapse {
+    right: -2rem;
+    border-radius: 0 0.5em 0.5em 0;
+}
+
+/* Right Position (Default) - Panel fills right margin space from chat edge to screen edge */
+.story-tracker-panel.story-tracker-position-right {
+    right: 0;
+    width: calc(50vw - var(--sheldWidth) / 2);
+    border-left: 3px solid var(--st-border);
+    box-shadow: -5px 0 20px var(--st-shadow);
+}
+
+/* Left Position - Panel fills left margin space from screen edge to chat edge */
+.story-tracker-panel.story-tracker-position-left {
+    left: 0;
+    width: calc(50vw - var(--sheldWidth) / 2);
+    border-right: 3px solid var(--st-border);
+    box-shadow: 5px 0 20px var(--st-shadow);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 1024px) {
+    .story-tracker-panel {
+        width: 20rem;
+        max-width: 35vw;
+        min-width: 16.25rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .story-tracker-section-title {
+        font-size: 1em;
+    }
+}
+
+@media (max-width: 480px) {
+    .story-tracker-panel.story-tracker-position-right,
+    .story-tracker-panel.story-tracker-position-left {
+        left: 0 !important;
+        right: 0 !important;
+        width: 100%;
+        height: 50vh;
+        top: auto;
+        bottom: 0;
+    }
+}
+
+/* Custom Scrollbar */
+.story-tracker-panel::-webkit-scrollbar,
+.story-tracker-content::-webkit-scrollbar {
+    width: 0.5rem;
+}
+
+.story-tracker-panel::-webkit-scrollbar-track,
+.story-tracker-content::-webkit-scrollbar-track {
+    background: var(--st-accent);
+}
+
+.story-tracker-panel::-webkit-scrollbar-thumb,
+.story-tracker-content::-webkit-scrollbar-thumb {
+    background: var(--st-highlight);
+    border-radius: 0.25em;
+}
+
+.story-tracker-panel::-webkit-scrollbar-thumb:hover,
+.story-tracker-content::-webkit-scrollbar-thumb:hover {
+    background: var(--st-border);
+}
+
+/* Header - Fixed size, doesn't grow */
 .story-tracker-header {
-    padding: 10px;
-    background-color: #e0e0e0;
-    border-bottom: 1px solid #ccc;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin: 0;
+    margin-bottom: 0.5em;
+    padding: 0;
+    border-bottom: 2px solid var(--st-border);
+    flex-shrink: 0;
 }
 
 .story-tracker-header h3 {
     margin: 0;
-    font-size: 16px;
-}
-
-.story-tracker-controls .story-tracker-btn {
-    margin-left: 5px;
-}
-
-.story-tracker-content {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding: 10px;
-}
-
-.story-tracker-sections {
-    margin-bottom: 10px;
-}
-
-.story-tracker-actions {
-    border-top: 1px solid #ccc;
-    padding-top: 10px;
-}
-
-/* Sections and Subsections */
-.story-tracker-section, .story-tracker-subsection {
-    margin-bottom: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-}
-
-.story-tracker-section-header, .story-tracker-subsection-header {
-    padding: 8px;
-    background-color: #f7f7f7;
-    cursor: pointer;
+    font-size: 1.7vw;
+    font-weight: bold;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 0.5em;
+    color: var(--st-highlight);
+    text-shadow: 0 0 8px var(--st-highlight);
+    letter-spacing: 0.031em;
 }
 
-.story-tracker-section-content, .story-tracker-subsection-content {
-    padding: 8px;
-}
-
-/* Fields */
-.story-tracker-field {
-    padding: 5px;
-    margin-bottom: 5px;
-    background-color: #fff;
-    border: 1px solid #eee;
-    border-radius: 3px;
-}
-
-/* Buttons */
 .story-tracker-btn {
-    padding: 5px 10px;
-    border: 1px solid #ccc;
-    background-color: #fff;
+    padding: 0.5em 0.75em;
+    background: var(--st-accent);
+    border: 2px solid var(--st-border);
+    border-radius: 0.5em;
     cursor: pointer;
-    border-radius: 3px;
+    color: var(--st-text);
+    transition: all 0.3s ease;
+}
+
+.story-tracker-btn:hover {
+    background: var(--st-highlight);
+    border-color: var(--st-highlight);
+    transform: scale(1.05);
+}
+
+/* Unified Content Box - Contains all sections, scales to fit viewport */
+.story-tracker-content {
+    background: linear-gradient(135deg, var(--st-accent) 0%, var(--st-bg) 100%);
+    border: 2px solid var(--st-border);
+    border-radius: 0.625em;
+    padding: 0.5em;
+    box-shadow: 0 4px 18px var(--st-shadow), inset 0 0 12px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 0.375em;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Section Styling - Flexible to scale with available space */
+.story-tracker-section {
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.story-tracker-section:empty {
+    display: none;
+}
+
+/* Divider - More compact */
+.story-tracker-divider {
+    width: 100%;
+    height: 0.062rem;
+    background: linear-gradient(to right, transparent, var(--st-highlight), transparent);
+    margin: 0.5em 0;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.story-tracker-divider::after {
+    display: none; /* Remove diamond decoration for more space */
+}
+
+/* Section Header */
+.story-tracker-section-header, .story-tracker-subsection-header {
+    padding: 0.75em;
+    background: var(--st-accent);
+    border: 2px solid var(--st-border);
+    border-radius: 0.625em;
+    margin-bottom: 0.938em;
+    display: flex;
+    align-items: center;
+    gap: 0.625em;
+    transition: all 0.3s ease;
+}
+
+.story-tracker-section-header:hover, .story-tracker-subsection-header:hover {
+    background: var(--st-highlight);
+    border-color: var(--st-highlight);
+    transform: translateX(0.312rem);
+}
+
+.story-tracker-section-title, .story-tracker-subsection-title {
+    font-weight: bold;
+    font-size: 1.2vw;
+    color: var(--st-text);
 }
 
 .story-tracker-btn-primary {
-    background-color: #007bff;
-    color: white;
-    border-color: #007bff;
+    background: var(--st-accent);
+    border: 2px solid var(--st-border);
+    color: var(--st-text);
+}
+
+.story-tracker-btn-primary:hover {
+    background: var(--st-highlight);
+    border-color: var(--st-highlight);
 }
 
 /* Modals */
 .story-tracker-modal {
+    /* Fluid spacing */
+    --modal-padding: clamp(0.5rem, 2vw, 0.75rem);
+    --modal-gap: clamp(0.375rem, 1.5vw, 0.5rem);
+    --modal-border-width: 2px;
+
+    /* Fluid typography */
+    --modal-font-base: clamp(0.8rem, 3vw, 0.9rem);
+    --modal-font-small: clamp(0.7rem, 2.5vw, 0.8rem);
+    --modal-font-heading: clamp(0.9rem, 3.5vw, 1rem);
+
+    /* Content constraints - more height than dice roller */
+    --modal-max-width: min(90vw, 500px);
+    --modal-max-height: 75vh;
+
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-    z-index: 1001;
-    display: flex;
-    justify-content: center;
+    inset: 0;
+    z-index: 10000;
+    display: none;
     align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
 }
 
+/* Open state */
+.story-tracker-modal.is-open {
+    display: flex;
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* Closing state */
+.story-tracker-modal.is-closing {
+    display: flex;
+    animation: fadeOut 0.2s ease-in;
+}
+
+/* Backdrop overlay - using ::before pseudo-element */
+.story-tracker-modal::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+/* Modal Content Box */
 .story-tracker-modal-content {
-    background-color: white;
-    padding: 20px;
-    border-radius: 5px;
-    width: 400px;
+    position: relative;
+    width: 100%;
+    max-width: var(--modal-max-width);
+    height: auto;
+    max-height: var(--modal-max-height);
+    min-height: 0;
+    background: rgba(30, 30, 30, 0.8);
+    border: var(--modal-border-width) solid var(--st-border);
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
+    color: var(--st-text);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    margin: auto 0;
 }
 
+/* Header */
 .story-tracker-modal-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #ccc;
-    padding-bottom: 10px;
-    margin-bottom: 10px;
+    justify-content: space-between;
+    padding: var(--modal-padding);
+    background: var(--st-accent);
+    border-bottom: var(--modal-border-width) solid var(--st-border);
+    flex-shrink: 0;
 }
 
+.story-tracker-modal-header h4 {
+    margin: 0;
+    font-size: var(--modal-font-heading);
+    color: var(--st-highlight);
+    display: flex;
+    align-items: center;
+    gap: var(--modal-gap);
+}
+
+/* Close button - touch-friendly */
 .story-tracker-modal-close {
-    background: none;
+    background: transparent;
     border: none;
-    font-size: 20px;
+    color: var(--st-text);
+    font-size: 2.2vw;
     cursor: pointer;
+    padding: 0.5rem;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+}
+
+.story-tracker-modal-close:active {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--st-highlight);
+}
+
+/* Scrollable Body */
+.story-tracker-modal-body {
+    padding: var(--modal-padding);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Desktop Enhancement (1001px+) */
+@media (min-width: 1001px) {
+    .story-tracker-modal {
+        --modal-padding: 1rem;
+        --modal-gap: 0.75rem;
+        --modal-font-base: 0.9rem;
+        --modal-font-small: 0.8rem;
+        --modal-font-heading: 1.125rem;
+        --modal-max-width: 600px;
+    }
+
+    /* Hover effects on desktop */
+    .story-tracker-modal-close:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--st-highlight);
+    }
 }
