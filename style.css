@@ -452,3 +452,70 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
         color: var(--st-highlight);
     }
 }
+
+
+/* Mobile Controls */
+.story-tracker-mobile-toggle {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: var(--st-highlight);
+    color: var(--st-bg);
+    border: 2px solid var(--st-border);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001;
+    cursor: pointer;
+    box-shadow: 0 4px 12px var(--st-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.story-tracker-mobile-toggle:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px var(--st-shadow);
+}
+
+.story-tracker-mobile-toggle.dragging {
+    transition: none;
+}
+
+.story-tracker-mobile-overlay {
+    display: none;
+}
+
+
+@media (max-width: 1000px) {
+    .story-tracker-mobile-toggle {
+        display: flex;
+    }
+
+    .story-tracker-panel {
+        right: 0;
+        max-width: 22rem;
+        width: min(85vw, 22rem);
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    }
+
+    .story-tracker-panel.story-tracker-mobile-open {
+        transform: translateX(0);
+    }
+
+    .story-tracker-panel.story-tracker-mobile-closing {
+        transform: translateX(100%);
+    }
+
+    .story-tracker-mobile-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        z-index: 999;
+        display: block;
+    }
+}

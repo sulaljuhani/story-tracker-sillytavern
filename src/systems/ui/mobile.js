@@ -13,29 +13,29 @@ import { setupDesktopTabs, removeDesktopTabs } from './desktop.js';
  * Handles touch/mouse events for positioning and panel toggling.
  */
 export function setupMobileToggle() {
-    const $mobileToggle = $('#rpg-mobile-toggle');
-    const $panel = $('#rpg-companion-panel');
-    const $overlay = $('<div class="rpg-mobile-overlay"></div>');
+    const $mobileToggle = $('#story-tracker-mobile-toggle');
+    const $panel = $('#story-tracker-panel');
+    const $overlay = $('<div class="story-tracker-mobile-overlay"></div>');
 
     // DIAGNOSTIC: Check if elements exist and log setup state
-    console.log('[RPG Mobile] ========================================');
-    console.log('[RPG Mobile] setupMobileToggle called');
-    console.log('[RPG Mobile] Button exists:', $mobileToggle.length > 0, 'jQuery object:', $mobileToggle);
-    console.log('[RPG Mobile] Panel exists:', $panel.length > 0);
-    console.log('[RPG Mobile] Window width:', window.innerWidth);
-    console.log('[RPG Mobile] Is mobile viewport (<=1000):', window.innerWidth <= 1000);
-    console.log('[RPG Mobile] ========================================');
+    console.log('[Story Tracker Mobile] ========================================');
+    console.log('[Story Tracker Mobile] setupMobileToggle called');
+    console.log('[Story Tracker Mobile] Button exists:', $mobileToggle.length > 0, 'jQuery object:', $mobileToggle);
+    console.log('[Story Tracker Mobile] Panel exists:', $panel.length > 0);
+    console.log('[Story Tracker Mobile] Window width:', window.innerWidth);
+    console.log('[Story Tracker Mobile] Is mobile viewport (<=1000):', window.innerWidth <= 1000);
+    console.log('[Story Tracker Mobile] ========================================');
 
     if ($mobileToggle.length === 0) {
-        console.error('[RPG Mobile] ERROR: Mobile toggle button not found in DOM!');
-        console.error('[RPG Mobile] Cannot attach event handlers - button does not exist');
+        console.error('[Story Tracker Mobile] ERROR: Mobile toggle button not found in DOM!');
+        console.error('[Story Tracker Mobile] Cannot attach event handlers - button does not exist');
         return; // Exit early if button doesn't exist
     }
 
     // Load and apply saved FAB position
     if (extensionSettings.mobileFabPosition) {
         const pos = extensionSettings.mobileFabPosition;
-        console.log('[RPG Mobile] Loading saved FAB position:', pos);
+        console.log('[Story Tracker Mobile] Loading saved FAB position:', pos);
 
         // Apply saved position
         if (pos.top) $mobileToggle.css('top', pos.top);
@@ -213,7 +213,7 @@ export function setupMobileToggle() {
             extensionSettings.mobileFabPosition = newPosition;
             saveSettings();
 
-            console.log('[RPG Mobile] Saved new FAB position (mouse):', newPosition);
+            console.log('[Story Tracker Mobile] Saved new FAB position (mouse):', newPosition);
 
             // Constrain to viewport bounds (now that position is saved)
             setTimeout(() => constrainFabToViewport(), 10);
@@ -254,7 +254,7 @@ export function setupMobileToggle() {
             extensionSettings.mobileFabPosition = newPosition;
             saveSettings();
 
-            console.log('[RPG Mobile] Saved new FAB position:', newPosition);
+            console.log('[Story Tracker Mobile] Saved new FAB position:', newPosition);
 
             // Constrain to viewport bounds (now that position is saved)
             setTimeout(() => constrainFabToViewport(), 10);
@@ -267,14 +267,14 @@ export function setupMobileToggle() {
             isDragging = false;
         } else {
             // Was a tap - toggle panel
-            console.log('[RPG Mobile] Quick tap detected - toggling panel');
+            console.log('[Story Tracker Mobile] Quick tap detected - toggling panel');
 
-            if ($panel.hasClass('rpg-mobile-open')) {
+            if ($panel.hasClass('story-tracker-mobile-open')) {
                 // Close panel with animation
                 closeMobilePanelWithAnimation();
             } else {
                 // Open panel
-                $panel.addClass('rpg-mobile-open');
+                $panel.addClass('story-tracker-mobile-open');
                 $('body').append($overlay);
                 $mobileToggle.addClass('active');
 
@@ -290,28 +290,28 @@ export function setupMobileToggle() {
     $mobileToggle.on('click', function(e) {
         // Skip if we just finished dragging
         if ($mobileToggle.data('just-dragged')) {
-            console.log('[RPG Mobile] Click blocked - just finished dragging');
+            console.log('[Story Tracker Mobile] Click blocked - just finished dragging');
             return;
         }
 
-        console.log('[RPG Mobile] >>> CLICK EVENT FIRED <<<', {
+        console.log('[Story Tracker Mobile] >>> CLICK EVENT FIRED <<<', {
             windowWidth: window.innerWidth,
             isMobileViewport: window.innerWidth <= 1000,
-            panelOpen: $panel.hasClass('rpg-mobile-open')
+            panelOpen: $panel.hasClass('story-tracker-mobile-open')
         });
 
         // Work on both mobile and desktop (removed viewport check)
-        if ($panel.hasClass('rpg-mobile-open')) {
-            console.log('[RPG Mobile] Click: Closing panel');
+        if ($panel.hasClass('story-tracker-mobile-open')) {
+            console.log('[Story Tracker Mobile] Click: Closing panel');
             closeMobilePanelWithAnimation();
         } else {
-            console.log('[RPG Mobile] Click: Opening panel');
-            $panel.addClass('rpg-mobile-open');
+            console.log('[Story Tracker Mobile] Click: Opening panel');
+            $panel.addClass('story-tracker-mobile-open');
             $('body').append($overlay);
             $mobileToggle.addClass('active');
 
             $overlay.on('click', function() {
-                console.log('[RPG Mobile] Overlay clicked - closing panel');
+                console.log('[Story Tracker Mobile] Overlay clicked - closing panel');
                 closeMobilePanelWithAnimation();
             });
         }
@@ -325,21 +325,21 @@ export function setupMobileToggle() {
         clearTimeout(resizeTimer);
 
         const isMobile = window.innerWidth <= 1000;
-        const $panel = $('#rpg-companion-panel');
-        const $mobileToggle = $('#rpg-mobile-toggle');
+        const $panel = $('#story-tracker-panel');
+        const $mobileToggle = $('#story-tracker-mobile-toggle');
 
         // Transitioning from desktop to mobile - handle immediately for smooth transition
         if (!wasMobile && isMobile) {
-            console.log('[RPG Mobile] Transitioning desktop -> mobile');
+            console.log('[Story Tracker Mobile] Transitioning desktop -> mobile');
 
             // Remove desktop tabs first
             removeDesktopTabs();
 
             // Remove desktop positioning classes
-            $panel.removeClass('rpg-position-right rpg-position-left rpg-position-top');
+            $panel.removeClass('story-tracker-position-right story-tracker-position-left story-tracker-position-top');
 
             // Clear collapsed state - mobile doesn't use collapse
-            $panel.removeClass('rpg-collapsed');
+            $panel.removeClass('story-tracker-collapsed');
 
             // Close panel on mobile with animation
             closeMobilePanelWithAnimation();
@@ -347,7 +347,7 @@ export function setupMobileToggle() {
             // Clear any inline styles that might be overriding CSS
             $panel.attr('style', '');
 
-            console.log('[RPG Mobile] After cleanup:', {
+            console.log('[Story Tracker Mobile] After cleanup:', {
                 panelClasses: $panel.attr('class'),
                 inlineStyles: $panel.attr('style'),
                 panelPosition: {
@@ -377,13 +377,13 @@ export function setupMobileToggle() {
                 // Disable transitions to prevent left→right slide animation
                 $panel.css('transition', 'none');
 
-                $panel.removeClass('rpg-mobile-open rpg-mobile-closing');
+                $panel.removeClass('story-tracker-mobile-open story-tracker-mobile-closing');
                 $mobileToggle.removeClass('active');
-                $('.rpg-mobile-overlay').remove();
+                $('.story-tracker-mobile-overlay').remove();
 
                 // Restore desktop positioning class
                 const position = extensionSettings.panelPosition || 'right';
-                $panel.addClass('rpg-position-' + position);
+                $panel.addClass('story-tracker-position-' + position);
 
                 // Remove mobile tabs structure
                 removeMobileTabs();
@@ -410,11 +410,11 @@ export function setupMobileToggle() {
     // Initialize mobile tabs if starting on mobile
     const isMobile = window.innerWidth <= 1000;
     if (isMobile) {
-        const $panel = $('#rpg-companion-panel');
+        const $panel = $('#story-tracker-panel');
         // Clear any inline styles
         $panel.attr('style', '');
 
-        console.log('[RPG Mobile] Initial load on mobile viewport:', {
+        console.log('[Story Tracker Mobile] Initial load on mobile viewport:', {
             panelClasses: $panel.attr('class'),
             inlineStyles: $panel.attr('style'),
             panelPosition: {
@@ -438,16 +438,16 @@ export function setupMobileToggle() {
 export function constrainFabToViewport() {
     // Only constrain if user has set a custom position
     if (!extensionSettings.mobileFabPosition) {
-        console.log('[RPG Mobile] Skipping viewport constraint - using CSS defaults');
+        console.log('[Story Tracker Mobile] Skipping viewport constraint - using CSS defaults');
         return;
     }
 
-    const $mobileToggle = $('#rpg-mobile-toggle');
+    const $mobileToggle = $('#story-tracker-mobile-toggle');
     if ($mobileToggle.length === 0) return;
 
     // Skip if button is not visible
     if (!$mobileToggle.is(':visible')) {
-        console.log('[RPG Mobile] Skipping viewport constraint - button not visible');
+        console.log('[Story Tracker Mobile] Skipping viewport constraint - button not visible');
         return;
     }
 
@@ -477,7 +477,7 @@ export function constrainFabToViewport() {
 
     // Only update if position changed
     if (newX !== currentX || newY !== currentY) {
-        console.log('[RPG Mobile] Constraining FAB to viewport:', {
+        console.log('[Story Tracker Mobile] Constraining FAB to viewport:', {
             old: { x: currentX, y: currentY },
             new: { x: newX, y: newY },
             viewport: { width: window.innerWidth, height: window.innerHeight },
@@ -510,16 +510,16 @@ export function setupMobileTabs() {
     if (!isMobile) return;
 
     // Check if tabs already exist
-    if ($('.rpg-mobile-tabs').length > 0) return;
+    if ($('.story-tracker-mobile-tabs').length > 0) return;
 
-    const $panel = $('#rpg-companion-panel');
-    const $contentBox = $panel.find('.rpg-content-box');
+    const $panel = $('#story-tracker-panel');
+    const $contentBox = $panel.find('.story-tracker-content-box');
 
     // Get existing sections
-    const $userStats = $('#rpg-user-stats');
-    const $infoBox = $('#rpg-info-box');
-    const $thoughts = $('#rpg-thoughts');
-    const $inventory = $('#rpg-inventory');
+    const $userStats = $('#story-tracker-user-stats');
+    const $infoBox = $('#story-tracker-info-box');
+    const $thoughts = $('#story-tracker-thoughts');
+    const $inventory = $('#story-tracker-inventory');
 
     // If no sections exist, nothing to organize
     if ($userStats.length === 0 && $infoBox.length === 0 && $thoughts.length === 0 && $inventory.length === 0) {
@@ -534,18 +534,18 @@ export function setupMobileTabs() {
 
     // Tab 1: Stats (User Stats only)
     if (hasStats) {
-        tabs.push('<button class="rpg-mobile-tab active" data-tab="stats"><i class="fa-solid fa-chart-bar"></i><span>Stats</span></button>');
+        tabs.push('<button class="story-tracker-mobile-tab active" data-tab="stats"><i class="fa-solid fa-chart-bar"></i><span>Stats</span></button>');
     }
     // Tab 2: Info (Info Box + Character Thoughts)
     if (hasInfo) {
-        tabs.push('<button class="rpg-mobile-tab ' + (tabs.length === 0 ? 'active' : '') + '" data-tab="info"><i class="fa-solid fa-book"></i><span>Info</span></button>');
+        tabs.push('<button class="story-tracker-mobile-tab ' + (tabs.length === 0 ? 'active' : '') + '" data-tab="info"><i class="fa-solid fa-book"></i><span>Info</span></button>');
     }
     // Tab 3: Inventory
     if (hasInventory) {
-        tabs.push('<button class="rpg-mobile-tab ' + (tabs.length === 0 ? 'active' : '') + '" data-tab="inventory"><i class="fa-solid fa-box"></i><span>Inventory</span></button>');
+        tabs.push('<button class="story-tracker-mobile-tab ' + (tabs.length === 0 ? 'active' : '') + '" data-tab="inventory"><i class="fa-solid fa-box"></i><span>Inventory</span></button>');
     }
 
-    const $tabNav = $('<div class="rpg-mobile-tabs">' + tabs.join('') + '</div>');
+    const $tabNav = $('<div class="story-tracker-mobile-tabs">' + tabs.join('') + '</div>');
 
     // Determine which tab should be active
     let firstTab = '';
@@ -554,9 +554,9 @@ export function setupMobileTabs() {
     else if (hasInventory) firstTab = 'inventory';
 
     // Create tab content wrappers
-    const $statsTab = $('<div class="rpg-mobile-tab-content ' + (firstTab === 'stats' ? 'active' : '') + '" data-tab-content="stats"></div>');
-    const $infoTab = $('<div class="rpg-mobile-tab-content ' + (firstTab === 'info' ? 'active' : '') + '" data-tab-content="info"></div>');
-    const $inventoryTab = $('<div class="rpg-mobile-tab-content ' + (firstTab === 'inventory' ? 'active' : '') + '" data-tab-content="inventory"></div>');
+    const $statsTab = $('<div class="story-tracker-mobile-tab-content ' + (firstTab === 'stats' ? 'active' : '') + '" data-tab-content="stats"></div>');
+    const $infoTab = $('<div class="story-tracker-mobile-tab-content ' + (firstTab === 'info' ? 'active' : '') + '" data-tab-content="info"></div>');
+    const $inventoryTab = $('<div class="story-tracker-mobile-tab-content ' + (firstTab === 'inventory' ? 'active' : '') + '" data-tab-content="inventory"></div>');
 
     // Move sections into their respective tabs (detach to preserve event handlers)
     // Stats tab: User Stats only
@@ -582,10 +582,10 @@ export function setupMobileTabs() {
     }
 
     // Hide dividers on mobile
-    $('.rpg-divider').hide();
+    $('.story-tracker-divider').hide();
 
     // Build mobile tab structure
-    const $mobileContainer = $('<div class="rpg-mobile-container"></div>');
+    const $mobileContainer = $('<div class="story-tracker-mobile-container"></div>');
     $mobileContainer.append($tabNav);
 
     // Only append tab content wrappers that have content
@@ -597,15 +597,15 @@ export function setupMobileTabs() {
     $contentBox.prepend($mobileContainer);
 
     // Handle tab switching
-    $tabNav.find('.rpg-mobile-tab').on('click', function() {
+    $tabNav.find('.story-tracker-mobile-tab').on('click', function() {
         const tabName = $(this).data('tab');
 
         // Update active tab button
-        $tabNav.find('.rpg-mobile-tab').removeClass('active');
+        $tabNav.find('.story-tracker-mobile-tab').removeClass('active');
         $(this).addClass('active');
 
         // Update active tab content
-        $mobileContainer.find('.rpg-mobile-tab-content').removeClass('active');
+        $mobileContainer.find('.story-tracker-mobile-tab-content').removeClass('active');
         $mobileContainer.find('[data-tab-content="' + tabName + '"]').addClass('active');
     });
 }
@@ -615,21 +615,21 @@ export function setupMobileTabs() {
  */
 export function removeMobileTabs() {
     // Get sections from tabs before removing
-    const $userStats = $('#rpg-user-stats').detach();
-    const $infoBox = $('#rpg-info-box').detach();
-    const $thoughts = $('#rpg-thoughts').detach();
-    const $inventory = $('#rpg-inventory').detach();
+    const $userStats = $('#story-tracker-user-stats').detach();
+    const $infoBox = $('#story-tracker-info-box').detach();
+    const $thoughts = $('#story-tracker-thoughts').detach();
+    const $inventory = $('#story-tracker-inventory').detach();
 
     // Remove mobile tab container
-    $('.rpg-mobile-container').remove();
+    $('.story-tracker-mobile-container').remove();
 
     // Get dividers
-    const $dividerStats = $('#rpg-divider-stats');
-    const $dividerInfo = $('#rpg-divider-info');
-    const $dividerThoughts = $('#rpg-divider-thoughts');
+    const $dividerStats = $('#story-tracker-divider-stats');
+    const $dividerInfo = $('#story-tracker-divider-info');
+    const $dividerThoughts = $('#story-tracker-divider-thoughts');
 
     // Restore original sections to content box in correct order
-    const $contentBox = $('.rpg-content-box');
+    const $contentBox = $('.story-tracker-content-box');
 
     // Re-insert sections in original order: User Stats, Info Box, Thoughts, Inventory
     if ($dividerStats.length) {
@@ -650,7 +650,7 @@ export function removeMobileTabs() {
     $infoBox.show();
     $thoughts.show();
     $inventory.show();
-    $('.rpg-divider').show();
+    $('.story-tracker-divider').show();
 }
 
 /**
@@ -660,17 +660,17 @@ export function removeMobileTabs() {
  */
 export function setupMobileKeyboardHandling() {
     if (!window.visualViewport) {
-        // console.log('[RPG Mobile] Visual Viewport API not supported');
+        // console.log('[Story Tracker Mobile] Visual Viewport API not supported');
         return;
     }
 
-    const $panel = $('#rpg-companion-panel');
+    const $panel = $('#story-tracker-panel');
     let keyboardVisible = false;
 
     // Listen for viewport resize (keyboard show/hide)
     window.visualViewport.addEventListener('resize', () => {
         // Only handle if panel is open on mobile
-        if (!$panel.hasClass('rpg-mobile-open')) return;
+        if (!$panel.hasClass('story-tracker-mobile-open')) return;
 
         const viewportHeight = window.visualViewport.height;
         const windowHeight = window.innerHeight;
@@ -682,13 +682,13 @@ export function setupMobileKeyboardHandling() {
         if (isKeyboardShowing && !keyboardVisible) {
             // Keyboard just appeared
             keyboardVisible = true;
-            $panel.addClass('rpg-keyboard-visible');
-            // console.log('[RPG Mobile] Keyboard opened');
+            $panel.addClass('story-tracker-keyboard-visible');
+            // console.log('[Story Tracker Mobile] Keyboard opened');
         } else if (!isKeyboardShowing && keyboardVisible) {
             // Keyboard just disappeared
             keyboardVisible = false;
-            $panel.removeClass('rpg-keyboard-visible');
-            // console.log('[RPG Mobile] Keyboard closed');
+            $panel.removeClass('story-tracker-keyboard-visible');
+            // console.log('[Story Tracker Mobile] Keyboard closed');
         }
     });
 }
@@ -698,7 +698,7 @@ export function setupMobileKeyboardHandling() {
  * Uses smooth scrolling to bring focused field into view with proper padding.
  */
 export function setupContentEditableScrolling() {
-    const $panel = $('#rpg-companion-panel');
+    const $panel = $('#story-tracker-panel');
 
     // Use event delegation for all contenteditable fields
     $panel.on('focusin', '[contenteditable="true"]', function(e) {

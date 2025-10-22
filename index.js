@@ -87,6 +87,9 @@ async function initUI() {
     setPanelContainer($('#story-tracker-panel'));
     setSectionsContainer($('#story-tracker-sections'));
 
+    applyPanelPosition();
+    updatePanelVisibility();
+
     // Set up event listeners
     $('#story-tracker-add-section').on('click', function() {
         import('./src/systems/ui/modals.js').then(module => {
@@ -107,16 +110,7 @@ async function initUI() {
         await updateTrackerData(renderTracker);
     });
 
-    $('#story-tracker-collapse').on('click', function() {
-        // Toggle collapse state
-        const $panel = $('#story-tracker-panel');
-        const isCollapsed = $panel.hasClass('story-tracker-collapsed');
-        if (isCollapsed) {
-            $panel.removeClass('story-tracker-collapsed');
-        } else {
-            $panel.addClass('story-tracker-collapsed');
-        }
-    });
+    setupCollapseToggle();
 
     // Setup mobile toggle button
     setupMobileToggle();

@@ -12,10 +12,13 @@ import {
  * Toggles the visibility of plot buttons based on settings.
  */
 export function togglePlotButtons() {
+    const $plotButtons = $('#story-tracker-plot-buttons, #rpg-plot-buttons');
+    if ($plotButtons.length === 0) return;
+
     if (extensionSettings.enablePlotButtons && extensionSettings.enabled) {
-        $('#rpg-plot-buttons').show();
+        $plotButtons.show();
     } else {
-        $('#rpg-plot-buttons').hide();
+        $plotButtons.hide();
     }
 }
 
@@ -23,33 +26,39 @@ export function togglePlotButtons() {
  * Helper function to close the mobile panel with animation.
  */
 export function closeMobilePanelWithAnimation() {
-    const $panel = $('#rpg-companion-panel');
-    const $mobileToggle = $('#rpg-mobile-toggle');
+    const $panel = $('#story-tracker-panel');
+    const $mobileToggle = $('#story-tracker-mobile-toggle');
 
     // Add closing class to trigger slide-out animation
-    $panel.removeClass('rpg-mobile-open').addClass('rpg-mobile-closing');
+    $panel.removeClass('story-tracker-mobile-open').addClass('story-tracker-mobile-closing');
     $mobileToggle.removeClass('active');
 
-    // Wait for animation to complete before hiding
-    $panel.one('animationend', function() {
-        $panel.removeClass('rpg-mobile-closing');
-        $('.rpg-mobile-overlay').remove();
-    });
+    // Wait for transition/animation to complete before hiding
+    let cleaned = false;
+    const cleanup = () => {
+        if (cleaned) return;
+        cleaned = true;
+        $panel.removeClass('story-tracker-mobile-closing');
+        $('.story-tracker-mobile-overlay').remove();
+    };
+
+    $panel.one('transitionend animationend', cleanup);
+    setTimeout(cleanup, 400); // Fallback in case no event fires
 }
 
 /**
  * Updates the collapse toggle icon direction based on panel position.
  */
 export function updateCollapseToggleIcon() {
-    const $collapseToggle = $('#rpg-collapse-toggle');
-    const $panel = $('#rpg-companion-panel');
+    const $collapseToggle = $('#story-tracker-collapse');
+    const $panel = $('#story-tracker-panel');
     const $icon = $collapseToggle.find('i');
     const isMobile = window.innerWidth <= 1000;
 
     if (isMobile) {
         // Mobile: slides from right, use same icon logic as desktop right panel
-        const isOpen = $panel.hasClass('rpg-mobile-open');
-        console.log('[RPG Mobile] updateCollapseToggleIcon:', {
+        const isOpen = $panel.hasClass('story-tracker-mobile-open');
+        console.log('[Story Tracker Mobile] updateCollapseToggleIcon:', {
             isMobile: true,
             isOpen,
             settingIcon: isOpen ? 'chevron-left' : 'chevron-right'
@@ -63,20 +72,20 @@ export function updateCollapseToggleIcon() {
         }
     } else {
         // Desktop: icon direction based on panel position and collapsed state
-        const isCollapsed = $panel.hasClass('rpg-collapsed');
+        const isCollapsed = $panel.hasClass('story-tracker-collapsed');
 
         if (isCollapsed) {
             // When collapsed, arrow points inward (to expand)
-            if ($panel.hasClass('rpg-position-right')) {
+            if ($panel.hasClass('story-tracker-position-right')) {
                 $icon.removeClass('fa-chevron-right').addClass('fa-chevron-left');
-            } else if ($panel.hasClass('rpg-position-left')) {
+            } else if ($panel.hasClass('story-tracker-position-left')) {
                 $icon.removeClass('fa-chevron-left').addClass('fa-chevron-right');
             }
         } else {
             // When expanded, arrow points outward (to collapse)
-            if ($panel.hasClass('rpg-position-right')) {
+            if ($panel.hasClass('story-tracker-position-right')) {
                 $icon.removeClass('fa-chevron-left').addClass('fa-chevron-right');
-            } else if ($panel.hasClass('rpg-position-left')) {
+            } else if ($panel.hasClass('story-tracker-position-left')) {
                 $icon.removeClass('fa-chevron-right').addClass('fa-chevron-left');
             }
         }
@@ -87,8 +96,8 @@ export function updateCollapseToggleIcon() {
  * Sets up the collapse/expand toggle button for side panels.
  */
 export function setupCollapseToggle() {
-    const $collapseToggle = $('#rpg-collapse-toggle');
-    const $panel = $('#rpg-companion-panel');
+    const $collapseToggle = $('#story-tracker-collapse');
+    const $panel = $('#story-tracker-panel');
     const $icon = $collapseToggle.find('i');
 
     $collapseToggle.on('click', function(e) {
@@ -99,8 +108,8 @@ export function setupCollapseToggle() {
 
         // On mobile: button toggles panel open/closed (same as desktop behavior)
         if (isMobile) {
-            const isOpen = $panel.hasClass('rpg-mobile-open');
-            console.log('[RPG Mobile] Collapse toggle clicked. Current state:', {
+            const isOpen = $panel.hasClass('story-tracker-mobile-open');
+            console.log('[Story Tracker Mobile] Collapse toggle clicked. Current state:', {
                 isOpen,
                 panelClasses: $panel.attr('class'),
                 inlineStyles: $panel.attr('style'),
@@ -114,20 +123,20 @@ export function setupCollapseToggle() {
 
             if (isOpen) {
                 // Close panel with animation
-                console.log('[RPG Mobile] Closing panel');
+                console.log('[Story Tracker Mobile] Closing panel');
                 closeMobilePanelWithAnimation();
             } else {
                 // Open panel
-                console.log('[RPG Mobile] Opening panel');
-                $panel.addClass('rpg-mobile-open');
-                const $overlay = $('<div class="rpg-mobile-overlay"></div>');
+                console.log('[Story Tracker Mobile] Opening panel');
+                $panel.addClass('story-tracker-mobile-open');
+                const $overlay = $('<div class="story-tracker-mobile-overlay"></div>');
                 $('body').append($overlay);
 
                 // Debug: Check state after animation should complete
                 setTimeout(() => {
-                    console.log('[RPG Mobile] 500ms after opening:', {
+                    console.log('[Story Tracker Mobile] 500ms after opening:', {
                         panelClasses: $panel.attr('class'),
-                        hasOpenClass: $panel.hasClass('rpg-mobile-open'),
+                        hasOpenClass: $panel.hasClass('story-tracker-mobile-open'),
                         visibility: $panel.css('visibility'),
                         transform: $panel.css('transform'),
                         display: $panel.css('display'),
@@ -137,7 +146,7 @@ export function setupCollapseToggle() {
 
                 // Close when clicking overlay
                 $overlay.on('click', function() {
-                    console.log('[RPG Mobile] Overlay clicked - closing panel');
+                    console.log('[Story Tracker Mobile] Overlay clicked - closing panel');
                     closeMobilePanelWithAnimation();
                     updateCollapseToggleIcon();
                 });
@@ -146,7 +155,7 @@ export function setupCollapseToggle() {
             // Update icon to reflect new state
             updateCollapseToggleIcon();
 
-            console.log('[RPG Mobile] After toggle:', {
+            console.log('[Story Tracker Mobile] After toggle:', {
                 panelClasses: $panel.attr('class'),
                 inlineStyles: $panel.attr('style'),
                 panelPosition: {
@@ -156,34 +165,34 @@ export function setupCollapseToggle() {
                     visibility: $panel.css('visibility')
                 },
                 gameContainer: {
-                    opacity: $('.rpg-game-container').css('opacity'),
-                    visibility: $('.rpg-game-container').css('visibility')
+                    opacity: $('.story-tracker-content').css('opacity'),
+                    visibility: $('.story-tracker-content').css('visibility')
                 }
             });
             return;
         }
 
         // Desktop behavior: collapse/expand side panel
-        const isCollapsed = $panel.hasClass('rpg-collapsed');
+        const isCollapsed = $panel.hasClass('story-tracker-collapsed');
 
         if (isCollapsed) {
             // Expand panel
-            $panel.removeClass('rpg-collapsed');
+            $panel.removeClass('story-tracker-collapsed');
 
             // Update icon based on position
-            if ($panel.hasClass('rpg-position-right')) {
+            if ($panel.hasClass('story-tracker-position-right')) {
                 $icon.removeClass('fa-chevron-left').addClass('fa-chevron-right');
-            } else if ($panel.hasClass('rpg-position-left')) {
+            } else if ($panel.hasClass('story-tracker-position-left')) {
                 $icon.removeClass('fa-chevron-right').addClass('fa-chevron-left');
             }
         } else {
             // Collapse panel
-            $panel.addClass('rpg-collapsed');
+            $panel.addClass('story-tracker-collapsed');
 
             // Update icon based on position
-            if ($panel.hasClass('rpg-position-right')) {
+            if ($panel.hasClass('story-tracker-position-right')) {
                 $icon.removeClass('fa-chevron-right').addClass('fa-chevron-left');
-            } else if ($panel.hasClass('rpg-position-left')) {
+            } else if ($panel.hasClass('story-tracker-position-left')) {
                 $icon.removeClass('fa-chevron-left').addClass('fa-chevron-right');
             }
         }
@@ -202,7 +211,7 @@ export function updatePanelVisibility() {
         togglePlotButtons(); // Update plot button visibility
     } else {
         $panelContainer.hide();
-        $('#rpg-plot-buttons').hide(); // Hide plot buttons when disabled
+        $('#story-tracker-plot-buttons, #rpg-plot-buttons').hide(); // Hide plot buttons when disabled
     }
 }
 
@@ -224,7 +233,7 @@ export function applyPanelPosition() {
     const isMobile = window.innerWidth <= 1000;
 
     // Remove all position classes
-    $panelContainer.removeClass('rpg-position-left rpg-position-right rpg-position-top');
+    $panelContainer.removeClass('story-tracker-position-left story-tracker-position-right story-tracker-position-top');
 
     // On mobile, don't apply desktop position classes
     if (isMobile) {
@@ -232,7 +241,8 @@ export function applyPanelPosition() {
     }
 
     // Desktop: Add the appropriate position class
-    $panelContainer.addClass(`rpg-position-${extensionSettings.panelPosition}`);
+    const position = extensionSettings.panelPosition || 'right';
+    $panelContainer.addClass(`story-tracker-position-${position}`);
 
     // Update collapse toggle icon direction for new position
     updateCollapseToggleIcon();
@@ -244,9 +254,9 @@ export function applyPanelPosition() {
 export function updateGenerationModeUI() {
     if (extensionSettings.generationMode === 'together') {
         // In "together" mode, manual update button is hidden
-        $('#rpg-manual-update').hide();
+        $('#story-tracker-manual-update, #rpg-manual-update').hide();
     } else {
         // In "separate" mode, manual update button is visible
-        $('#rpg-manual-update').show();
+        $('#story-tracker-manual-update, #rpg-manual-update').show();
     }
 }
