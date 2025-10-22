@@ -11,17 +11,10 @@ import {
     $sectionsContainer,
     setSectionsContainer
 } from './src/core/state.js';
-import { loadSettings, saveSettings, saveChatData, loadChatData, updateMessageSwipeData } from './src/core/persistence.js';
+import { loadSettings, saveSettings, saveChatData, loadChatData } from './src/core/persistence.js';
 import { registerAllEvents } from './src/core/events.js';
 
 // Generation & Parsing modules
-import {
-    generateTrackerExample,
-    generateTrackerInstructions,
-    generateContextualSummary,
-    generateSeparateUpdatePrompt
-} from './src/systems/generation/promptBuilder.js';
-import { parseResponse } from './src/systems/generation/parser.js';
 import { updateTrackerData } from './src/systems/generation/apiClient.js';
 import { onGenerationStarted } from './src/systems/generation/injector.js';
 
@@ -29,13 +22,6 @@ import { onGenerationStarted } from './src/systems/generation/injector.js';
 import { renderTracker } from './src/systems/rendering/tracker.js';
 
 // UI Systems modules
-import {
-    applyTheme,
-    applyCustomTheme,
-} from './src/systems/ui/theme.js';
-import {
-    setupSettingsPopup,
-} from './src/systems/ui/modals.js';
 import {
     setupCollapseToggle,
     updatePanelVisibility,
@@ -47,7 +33,6 @@ import {
 
 // Integration modules
 import {
-    commitTrackerData,
     onMessageSent,
     onMessageReceived,
     onCharacterChanged,
@@ -56,27 +41,6 @@ import {
     clearExtensionPrompts
 } from './src/systems/integration/sillytavern.js';
 
-// Old state variable declarations removed - now imported from core modules
-// (extensionSettings, lastGeneratedData, committedTrackerData, etc. are now in src/core/state.js)
-
-// Utility functions removed - now imported from src/utils/avatars.js
-// (getSafeThumbnailUrl)
-
-// Persistence functions removed - now imported from src/core/persistence.js
-// (loadSettings, saveSettings, saveChatData, loadChatData, updateMessageSwipeData)
-
-// Theme functions removed - now imported from src/systems/ui/theme.js
-// (applyTheme, applyCustomTheme, toggleCustomColors, toggleAnimations,
-//  updateSettingsPopupTheme, applyCustomThemeToSettingsPopup)
-
-// Layout functions removed - now imported from src/systems/ui/layout.js
-// (togglePlotButtons, updateCollapseToggleIcon, setupCollapseToggle,
-//  updatePanelVisibility, updateSectionVisibility, applyPanelPosition)
-// Note: closeMobilePanelWithAnimation is only used internally by mobile.js
-
-// Mobile UI functions removed - now imported from src/systems/ui/mobile.js
-// (setupMobileToggle, constrainFabToViewport, setupMobileTabs, removeMobileTabs,
-//  setupMobileKeyboardHandling, setupContentEditableScrolling)
 
 /**
  * Adds the extension settings to the Extensions tab.
@@ -85,15 +49,15 @@ function addExtensionSettings() {
     const settingsHtml = `
         <div class="inline-drawer">
             <div class="inline-drawer-toggle inline-drawer-header">
-                <b><i class="fa-solid fa-book"></i> Story Tracker</b>
+                <b><i class="fa-solid fa-book"></i> ${extensionDisplayName}</b>
                 <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
             </div>
             <div class="inline-drawer-content">
-                <label class="checkbox_label" for="rpg-extension-enabled">
-                    <input type="checkbox" id="rpg-extension-enabled" />
+                <label class="checkbox_label" for="story-tracker-enabled">
+                    <input type="checkbox" id="story-tracker-enabled" />
                     <span>Enable Story Tracker</span>
                 </label>
-                <small class="notes">Toggle to enable/disable the Story Tracker extension. Configure additional settings within the panel itself.</small>
+                <small class="notes">Toggle to enable/disable the Story Tracker extension.</small>
             </div>
         </div>
     `;
@@ -101,7 +65,7 @@ function addExtensionSettings() {
     $('#extensions_settings2').append(settingsHtml);
 
     // Set up the enable/disable toggle
-    $('#rpg-extension-enabled').prop('checked', extensionSettings.enabled).on('change', function() {
+    $('#story-tracker-enabled').prop('checked', extensionSettings.enabled).on('change', function() {
         extensionSettings.enabled = $(this).prop('checked');
         saveSettings();
         updatePanelVisibility();
@@ -126,16 +90,14 @@ async function initUI() {
     setPanelContainer($('#story-tracker-panel'));
     setSectionsContainer($('#story-tracker-sections'));
 
-    // Set up event listeners (enable/disable is handled in Extensions tab)
+    // Set up event listeners
     $('#story-tracker-add-section').on('click', function() {
-        // Import and call modal function
         import('./src/systems/ui/modals.js').then(module => {
             module.showAddSectionModal();
         });
     });
 
     $('#story-tracker-settings').on('click', function() {
-        // Import and call modal function
         import('./src/systems/ui/modals.js').then(module => {
             module.showSettingsModal();
         });
@@ -156,20 +118,8 @@ async function initUI() {
 
     // Render initial data if available
     renderTracker();
-    setupSettingsPopup();
 }
 
-
-
-
-
-// Rendering functions removed - now imported from src/systems/rendering/*
-// (renderUserStats, renderInfoBox, renderThoughts, updateInfoBoxField,
-//  updateCharacterField, updateChatThoughts, createThoughtPanel)
-
-// Event handlers removed - now imported from src/systems/integration/sillytavern.js
-// (commitTrackerData, onMessageSent, onMessageReceived, onCharacterChanged,
-//  onMessageSwiped, updatePersonaAvatar, clearExtensionPrompts)
 
 /**
  * Main initialization function.
