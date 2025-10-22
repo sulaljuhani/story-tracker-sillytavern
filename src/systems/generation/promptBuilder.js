@@ -3,7 +3,6 @@
  * Handles AI prompt generation for story tracker data
  */
 
-import { getContext, chat } from '../../../../script.js';
 import { extensionSettings, committedTrackerData } from '../../core/state.js';
 
 // Type imports
@@ -33,7 +32,8 @@ export function generateTrackerPrompt(includeHistory = true, trackerData = null)
     if (includeHistory) {
         prompt += 'Recent chat history for context:\n';
         const depth = extensionSettings.updateDepth;
-        const recentMessages = chat.slice(-depth);
+        const st = SillyTavern.getContext();
+        const recentMessages = st.chat.slice(-depth);
 
         for (const message of recentMessages) {
             const role = message.is_user ? 'User' : 'Assistant';
