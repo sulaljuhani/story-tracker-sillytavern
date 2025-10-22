@@ -16,7 +16,6 @@ import { registerAllEvents } from './src/core/events.js';
 
 // Generation & Parsing modules
 import { updateTrackerData } from './src/systems/generation/apiClient.js';
-import { onGenerationStarted } from './src/systems/generation/injector.js';
 
 // Rendering modules
 import { renderTracker } from './src/systems/rendering/tracker.js';
@@ -161,7 +160,6 @@ jQuery(async () => {
         try {
             registerAllEvents({
                 [event_types.MESSAGE_SENT]: onMessageSent,
-                [event_types.GENERATION_STARTED]: onGenerationStarted,
                 [event_types.MESSAGE_RECEIVED]: onMessageReceived,
                 [event_types.CHAT_CHANGED]: onCharacterChanged,
                 [event_types.MESSAGE_SWIPED]: onMessageSwiped,
