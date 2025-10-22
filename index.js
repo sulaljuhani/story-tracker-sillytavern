@@ -77,7 +77,7 @@ function addExtensionSettings() {
  */
 async function initUI() {
     // Load the HTML template using fetch with correct path
-    const templateUrl = `/scripts/extensions/third-party/${extensionName}/template.html`;
+    const templateUrl = `/scripts/extensions/third-party/story-tracker-sillytavern/template.html`;
     const templateHtml = await (await fetch(templateUrl, { cache: 'no-cache' })).text();
 
     // Append panel to body - positioning handled by CSS

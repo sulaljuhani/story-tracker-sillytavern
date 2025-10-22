@@ -16,7 +16,7 @@ const extensionName = 'story-tracker';
  */
 export function loadSettings() {
     const st = SillyTavern.getContext();
-    if (st.settings[extensionName]) {
+    if (st.settings && st.settings[extensionName]) {
         const savedSettings = st.settings[extensionName];
         updateExtensionSettings(savedSettings);
     }
