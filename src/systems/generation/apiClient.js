@@ -79,7 +79,7 @@ async function switchToPreset(presetName) {
  * @param {Function} renderThoughts - UI function to render character thoughts
  * @param {Function} renderInventory - UI function to render inventory
  */
-export async function updateRPGData(renderUserStats, renderInfoBox, renderThoughts, renderInventory) {
+export async function updateTrackerData(renderCallback) {
     if (isGenerating) {
         // console.log('[RPG Companion] Already generating, skipping...');
         return;

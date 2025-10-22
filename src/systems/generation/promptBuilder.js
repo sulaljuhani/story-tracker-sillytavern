@@ -302,45 +302,54 @@ export function generateContextualSummary() {
  *
  * @returns {string} Full prompt text for separate tracker generation
  */
-export function generateRPGPromptText() {
-    // Use COMMITTED data for generation context, not displayed data
+export function generateTrackerPrompt(includeHistory = true, trackerData = null) {
+    const data = trackerData || committedTrackerData;
     const userName = getContext().name1;
 
-    let promptText = '';
+    let prompt = generateGeneralInstructions();
+    prompt += '\n\n';
 
-    promptText += `Here are the previous trackers in the roleplay that you should consider when responding:\n`;
-    promptText += `<previous>\n`;
+    if (includeHistory) {
+        prompt += 'Recent chat history for context:\n';
+        const depth = extensionSettings.updateDepth;
+        const recentMessages = chat.slice(-depth);
 
-    if (extensionSettings.showUserStats) {
-        if (committedTrackerData.userStats) {
-            promptText += `Last ${userName}'s Stats:\n${committedTrackerData.userStats}\n\n`;
-        } else {
-            promptText += `Last ${userName}'s Stats:\nNone - this is the first update.\n\n`;
+        for (const message of recentMessages) {
+            const role = message.is_user ? 'User' : 'Assistant';
+            prompt += `${role}: ${message.mes}\n`;
+        }
+        prompt += '\n';
+    }
+
+    prompt += 'Current tracker state:\n';
+    prompt += generateTrackerExample(data);
+    prompt += '\n\n';
+
+    // Generate field-specific instructions
+    prompt += 'Please update the following fields based on the recent events:\n\n';
+
+    let fieldCount = 0;
+    if (data && data.sections) {
+        for (const section of data.sections) {
+            for (const subsection of section.subsections) {
+                for (const field of subsection.fields) {
+                    if (field.enabled) {
+                        prompt += generateFieldInstruction(field, field.value);
+                        prompt += '\n\n';
+                        fieldCount++;
+                    }
+                }
+            }
         }
     }
 
-    if (extensionSettings.showInfoBox) {
-        if (committedTrackerData.infoBox) {
-            promptText += `Last Info Box:\n${committedTrackerData.infoBox}\n\n`;
-        } else {
-            promptText += `Last Info Box:\nNone - this is the first update.\n\n`;
-        }
+    if (fieldCount === 0) {
+        prompt += 'No active fields to update.\n\n';
     }
 
-    if (extensionSettings.showCharacterThoughts) {
-        if (committedTrackerData.characterThoughts) {
-            promptText += `Last Present Characters:\n${committedTrackerData.characterThoughts}\n`;
-        } else {
-            promptText += `Last Present Characters:\nNone - this is the first update.\n`;
-        }
-    }
+    prompt += 'Provide the updated tracker in the same format as the example above. Only include fields that have changed or need updating.';
 
-    promptText += `</previous>\n`;
-
-    // Don't include HTML prompt or continuation instruction for separate tracker generation
-    promptText += generateTrackerInstructions(false, false);
-
-    return promptText;
+    return prompt;
 }
 
 /**
