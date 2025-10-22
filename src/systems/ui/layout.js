@@ -5,11 +5,7 @@
 
 import {
     extensionSettings,
-    $panelContainer,
-    $userStatsContainer,
-    $infoBoxContainer,
-    $thoughtsContainer,
-    $inventoryContainer
+    $panelContainer
 } from '../../core/state.js';
 
 /**
@@ -214,29 +210,9 @@ export function updatePanelVisibility() {
  * Updates the visibility of individual sections.
  */
 export function updateSectionVisibility() {
-    // Show/hide sections based on settings
-    $userStatsContainer.toggle(extensionSettings.showUserStats);
-    $infoBoxContainer.toggle(extensionSettings.showInfoBox);
-    $thoughtsContainer.toggle(extensionSettings.showCharacterThoughts);
-    if ($inventoryContainer) {
-        $inventoryContainer.toggle(extensionSettings.showInventory);
-    }
-
-    // Show/hide dividers intelligently
-    // Divider after User Stats: shown if User Stats is visible AND at least one section after it is visible
-    const showDividerAfterStats = extensionSettings.showUserStats &&
-        (extensionSettings.showInfoBox || extensionSettings.showCharacterThoughts || extensionSettings.showInventory);
-    $('#rpg-divider-stats').toggle(showDividerAfterStats);
-
-    // Divider after Info Box: shown if Info Box is visible AND at least one section after it is visible
-    const showDividerAfterInfo = extensionSettings.showInfoBox &&
-        (extensionSettings.showCharacterThoughts || extensionSettings.showInventory);
-    $('#rpg-divider-info').toggle(showDividerAfterInfo);
-
-    // Divider after Thoughts: shown if Thoughts is visible AND Inventory is visible
-    const showDividerAfterThoughts = extensionSettings.showCharacterThoughts &&
-        extensionSettings.showInventory;
-    $('#rpg-divider-thoughts').toggle(showDividerAfterThoughts);
+    // This function is not used by the Story Tracker extension
+    // It was part of the RPG Companion extension and can be removed or left empty
+    // The Story Tracker doesn't have separate sections like user stats, info box, etc.
 }
 
 /**
