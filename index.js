@@ -3,6 +3,9 @@
  * Main entry point that initializes all modules and handles the extension lifecycle
  */
 
+// REQUIRED: Default export at the TOP of index.js
+export { StoryTrackerLoader as default };
+
 import { getContext, renderExtensionTemplateAsync, extension_settings as st_extension_settings } from '../../../extensions.js';
 import { eventSource, event_types } from '../../../../script.js';
 
@@ -349,39 +352,44 @@ function setupSettingsModalEvents() {
 }
 
 /**
- * Main initialization function.
+ * Main initialization function - exported as default
  */
-jQuery(async () => {
-    try {
-        console.log('[Story Tracker] Starting initialization...');
+async function StoryTrackerLoader() {
+    console.log('=== Story Tracker: Starting initialization ===');
 
+    try {
         // Load settings with validation
         try {
             loadSettings();
+            console.log('✅ Settings loaded');
         } catch (error) {
-            console.error('[Story Tracker] Settings load failed, continuing with defaults:', error);
+            console.error('❌ Settings load failed, continuing with defaults:', error);
         }
 
         // Add extension settings to Extensions tab
         try {
             addExtensionSettings();
+            console.log('✅ Extension settings added to UI');
         } catch (error) {
-            console.error('[Story Tracker] Failed to add extension settings tab:', error);
+            console.error('❌ Failed to add extension settings tab:', error);
+            throw error;
         }
 
         // Initialize UI
         try {
             await initUI();
+            console.log('✅ UI initialized');
         } catch (error) {
-            console.error('[Story Tracker] UI initialization failed:', error);
+            console.error('❌ UI initialization failed:', error);
             throw error;
         }
 
         // Initialize tracker functionality
         try {
             initializeTracker();
+            console.log('✅ Tracker functionality initialized');
         } catch (error) {
-            console.error('[Story Tracker] Tracker initialization failed:', error);
+            console.error('❌ Tracker initialization failed:', error);
         }
 
         // Register all event listeners
@@ -394,15 +402,18 @@ jQuery(async () => {
                 [event_types.USER_MESSAGE_RENDERED]: updatePersonaAvatar,
                 [event_types.SETTINGS_UPDATED]: updatePersonaAvatar
             });
+            console.log('✅ Event listeners registered');
         } catch (error) {
-            console.error('[Story Tracker] Event registration failed:', error);
+            console.error('❌ Event registration failed:', error);
             throw error;
         }
 
-        console.log('[Story Tracker] ✅ Extension loaded successfully');
+        console.log('=== Story Tracker: ✅ Extension loaded successfully! ===');
+        return true;
     } catch (error) {
-        console.error('[Story Tracker] ❌ Critical initialization failure:', error);
-        console.error('[Story Tracker] Error details:', error.message, error.stack);
+        console.error('=== Story Tracker: ❌ Critical initialization failure ===');
+        console.error('Error details:', error.message);
+        console.error('Stack trace:', error.stack);
 
         // Show user-friendly error message
         toastr.error(
@@ -410,5 +421,6 @@ jQuery(async () => {
             'Story Tracker Error',
             { timeOut: 10000 }
         );
+        throw error;
     }
-});
+}

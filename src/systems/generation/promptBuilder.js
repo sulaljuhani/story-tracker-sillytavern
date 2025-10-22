@@ -3,7 +3,7 @@
  * Handles AI prompt generation for story tracker data
  */
 
-import { getContext, chat } from '../../../../../script.js';
+import { getContext, chat } from '../../../../script.js';
 import { extensionSettings, committedTrackerData } from '../../core/state.js';
 
 // Type imports

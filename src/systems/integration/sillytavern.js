@@ -17,15 +17,19 @@ import { updateTrackerData, shouldTriggerUpdate } from '../generation/apiClient.
  * @param {Object} eventData - Event data
  */
 export async function onMessageSent(eventData) {
-    console.log('[Story Tracker] Message sent event');
+    try {
+        console.log('[Story Tracker] Message sent event');
 
-    // Reset swipe flag
-    setLastActionWasSwipe(false);
+        // Reset swipe flag
+        setLastActionWasSwipe(false);
 
-    // Trigger auto-update if enabled
-    if (shouldAutoUpdate()) {
-        console.log('[Story Tracker] Triggering auto-update after message sent');
-        await updateTrackerData();
+        // Trigger auto-update if enabled
+        if (shouldAutoUpdate()) {
+            console.log('[Story Tracker] Triggering auto-update after message sent');
+            await updateTrackerData();
+        }
+    } catch (error) {
+        console.error('[Story Tracker] Error in onMessageSent:', error);
     }
 }
 

@@ -19,14 +19,21 @@ export function registerAllEvents(eventHandlers) {
                 // Multiple handlers for the same event
                 handler.forEach(h => eventSource.on(eventType, h));
             } else {
-                // Single handler
-                eventSource.on(eventType, handler);
+                // Single handler - wrap with error handling
+                eventSource.on(eventType, async (data) => {
+                    try {
+                        await handler(data);
+                    } catch (error) {
+                        console.error(`[Story Tracker] Error in ${eventType} handler:`, error);
+                    }
+                });
             }
         }
 
         console.log('[Story Tracker] Events registered successfully');
     } catch (error) {
         console.error('[Story Tracker] Error registering events:', error);
+        throw error;
     }
 }
 

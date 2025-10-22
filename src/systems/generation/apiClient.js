@@ -3,7 +3,7 @@
  * Handles communication with AI APIs for tracker updates
  */
 
-import { generateRaw, getRequestHeaders } from '../../../../../script.js';
+import { generateRaw, getRequestHeaders } from '../../../../script.js';
 import { extensionSettings, setIsGenerating, isGenerating } from '../../core/state.js';
 import { generateTrackerPrompt, generateSeparateUpdatePrompt } from './promptBuilder.js';
 import { parseTrackerResponse, updateTrackerData as applyTrackerUpdate } from './parser.js';
