@@ -7,25 +7,20 @@ import { extensionSettings } from './state.js';
 import { saveSettings, saveChatData } from './persistence.js';
 import {
     FORMAT_JSON,
-    FORMAT_YAML,
-    normalizeFormat,
     parseTrackerData,
     serializeTrackerData
 } from './serialization.js';
 
 const DATA_FOLDER = `${extensionAssetsBasePath}/data`;
 const DEFAULT_JSON_PATH = `${DATA_FOLDER}/default-tracker.json`;
-const DEFAULT_YAML_PATH = `${DATA_FOLDER}/default-tracker.yaml`;
 
-export async function loadDefaultTrackerTemplate(format = FORMAT_JSON) {
-    const normalized = normalizeFormat(format);
-    const url = normalized === FORMAT_YAML ? DEFAULT_YAML_PATH : DEFAULT_JSON_PATH;
-    const response = await fetch(`/${url}`, { cache: 'no-cache' });
+export async function loadDefaultTrackerTemplate() {
+    const response = await fetch(`/${DEFAULT_JSON_PATH}`, { cache: 'no-cache' });
     if (!response.ok) {
-        throw new Error(`Failed to load default tracker template (${normalized.toUpperCase()}).`);
+        throw new Error(`Failed to load default tracker template.`);
     }
     const text = await response.text();
-    return normalized === FORMAT_YAML ? parseTrackerData(text, FORMAT_YAML) : JSON.parse(text);
+    return JSON.parse(text);
 }
 
 export async function ensureTrackerDataInitialized() {
@@ -75,13 +70,13 @@ export function updateTrackerData(data, options = {}) {
 }
 
 export function setTrackerDataFormat(format) {
-    extensionSettings.dataFormat = normalizeFormat(format);
+    extensionSettings.dataFormat = FORMAT_JSON;
     saveSettings();
 }
 
-export function exportTrackerData(format = FORMAT_JSON) {
+export function exportTrackerData() {
     const data = getTrackerData();
-    return serializeTrackerData(data, format);
+    return serializeTrackerData(data, FORMAT_JSON);
 }
 
 function cloneData(data) {

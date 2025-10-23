@@ -197,6 +197,24 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     letter-spacing: 0.031em;
 }
 
+.story-tracker-preset-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.story-tracker-preset-controls label {
+    font-weight: bold;
+}
+
+#story-tracker-preset-select {
+    background: rgba(0, 0, 0, 0.6);
+    color: #eaeaea;
+    border: 1px solid var(--st-border);
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
+}
+
 @media (max-width: 1024px) {
     .story-tracker-header h3 {
         font-size: 1.1rem;
@@ -585,25 +603,36 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 }
 
 .story-tracker-field {
+    display: flex;
+    align-items: center;
     padding: 0.5rem;
     margin-bottom: 0.5rem;
     border: 1px solid var(--st-border);
     border-radius: 0.5rem;
 }
 
-.story-tracker-field-prompt {
-    font-size: 0.8rem;
-    color: var(--st-text);
-    opacity: 0.7;
-    margin-bottom: 0.25rem;
+.story-tracker-field-name {
+    font-weight: bold;
+    margin-right: 0.5rem;
 }
 
 .story-tracker-field-value {
+    flex-grow: 1;
     background: rgba(0, 0, 0, 0.6) !important;
     color: #eaeaea !important;
     border: 1px solid var(--st-border) !important;
-    padding: 0.5rem;
+    padding: 0.25rem 0.5rem;
     border-radius: 0.25rem;
+}
+
+.story-tracker-field-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.story-tracker-field-actions .story-tracker-btn-small {
+    padding: 0.25rem;
+    font-size: 0.8rem;
 }
 
 .story-tracker-modal input[type="text"],

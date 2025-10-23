@@ -18,12 +18,14 @@ import { updateTrackerData } from './src/systems/generation/apiClient.js';
 import { renderTracker } from './src/systems/rendering/tracker.js';
 import { ensureTrackerDataInitialized } from './src/core/dataManager.js';
 
+import './src/lib/sortable.min.js';
 // UI Systems modules
 import {
     setupCollapseToggle,
     updatePanelVisibility,
     applyPanelPosition,
 } from './src/systems/ui/layout.js';
+import { setupPresetManager } from './src/core/presetManager.js';
 import {
     setupMobileToggle,
 } from './src/systems/ui/mobile.js';
@@ -132,8 +134,29 @@ async function initUI() {
         module.setupFieldPopup();
     });
 
+    // Setup preset manager
+    setupPresetManager();
+
     // Render initial data if available
     renderTracker();
+
+    // Initialize SortableJS
+    const sectionsContainer = document.getElementById('story-tracker-sections');
+    new Sortable(sectionsContainer, {
+        animation: 150,
+        handle: '.story-tracker-section-header',
+        onEnd: function (evt) {
+            const sectionId = evt.item.dataset.sectionId;
+            const newIndex = evt.newIndex;
+            const oldIndex = evt.oldIndex;
+
+            const section = extensionSettings.trackerData.sections.find(s => s.id === sectionId);
+            extensionSettings.trackerData.sections.splice(oldIndex, 1);
+            extensionSettings.trackerData.sections.splice(newIndex, 0, section);
+
+            saveSettings();
+        }
+    });
 }
 
 

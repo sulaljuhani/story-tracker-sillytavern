@@ -48,7 +48,9 @@ export function renderTracker() {
  */
 export function renderSection(section) {
     const collapsedClass = section.collapsed ? 'collapsed' : '';
-    const subsectionsHtml = section.subsections.map(subsection => renderSubsection(subsection)).join('');
+    const fieldsHtml = (section.fields || []).map(field => renderField(field)).join('');
+    const subsectionsHtml = (section.subsections || []).map(subsection => renderSection(subsection)).join('');
+    const contentHtml = fieldsHtml + subsectionsHtml || '<div class="story-tracker-empty">No story elements yet. Click the plus button to add one.</div>';
 
     return `
         <div class="story-tracker-section" data-section-id="${section.id}">
@@ -56,18 +58,15 @@ export function renderSection(section) {
                 <div class="story-tracker-section-toggle">
                     <i class="fa-solid fa-chevron-down"></i>
                 </div>
-                <div class="story-tracker-section-title" contenteditable="true" data-section-id="${section.id}">${section.name}</div>
+                <div class="story-tracker-section-title">${section.name}</div>
                 <div class="story-tracker-section-actions">
-                    <button class="story-tracker-btn story-tracker-btn-small" data-action="add-subsection" data-section-id="${section.id}" title="Add Subsection">
+                    <button class="story-tracker-btn story-tracker-btn-small" data-action="add-field" data-section-id="${section.id}" title="Add Story Element">
                         <i class="fa-solid fa-plus"></i>
-                    </button>
-                    <button class="story-tracker-btn story-tracker-btn-small story-tracker-btn-danger" data-action="delete-section" data-section-id="${section.id}" title="Delete Section">
-                        <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
             </div>
             <div class="story-tracker-section-content" style="display: ${section.collapsed ? 'none' : 'block'}">
-                ${subsectionsHtml}
+                ${contentHtml}
             </div>
         </div>
     `;
@@ -113,29 +112,19 @@ export function renderSubsection(subsection) {
  */
 export function renderField(field) {
     const enabledClass = field.enabled ? 'enabled' : 'disabled';
-    const fieldTypeIcon = getFieldTypeIcon(field.type);
 
     return `
         <div class="story-tracker-field ${enabledClass}" data-field-id="${field.id}">
-            <div class="story-tracker-field-header">
-                <div class="story-tracker-field-toggle">
-                    <input type="checkbox" ${field.enabled ? 'checked' : ''} data-field-id="${field.id}" title="Enable/Disable Story Element">
-                </div>
-                <div class="story-tracker-field-icon">
-                    <i class="${fieldTypeIcon}"></i>
-                </div>
-                <div class="story-tracker-field-name">${field.name}</div>
-                <div class="story-tracker-field-actions">
-                    <button class="story-tracker-btn story-tracker-btn-small" data-action="edit-field" data-field-id="${field.id}" title="Edit Story Element">
-                        <i class="fa-solid fa-edit"></i>
-                    </button>
-                    <button class="story-tracker-btn story-tracker-btn-small story-tracker-btn-danger" data-action="delete-field" data-field-id="${field.id}" title="Delete Story Element">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                </div>
+            <div class="story-tracker-field-name">${field.name}:</div>
+            <div class="story-tracker-field-value">${field.value || '...'}</div>
+            <div class="story-tracker-field-actions">
+                <button class="story-tracker-btn story-tracker-btn-small" data-action="edit-field" data-field-id="${field.id}" title="Edit Story Element">
+                    <i class="fa-solid fa-edit"></i>
+                </button>
+                <button class="story-tracker-btn story-tracker-btn-small story-tracker-btn-danger" data-action="delete-field" data-field-id="${field.id}" title="Delete Story Element">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
             </div>
-            <div class="story-tracker-field-prompt"><strong>Prompt:</strong> ${field.prompt || 'No prompt set'}</div>
-            <div class="story-tracker-field-value"><strong>Current:</strong> ${field.value || 'Not yet generated'}</div>
         </div>
     `;
 }
@@ -146,14 +135,7 @@ export function renderField(field) {
  * @returns {string} Icon class
  */
 function getFieldTypeIcon(type) {
-    switch (type) {
-        case 'number':
-            return 'fa-solid fa-hashtag';
-        case 'boolean':
-            return 'fa-solid fa-toggle-on';
-        default:
-            return 'fa-solid fa-font';
-    }
+    return 'fa-solid fa-font';
 }
 
 /**
@@ -191,56 +173,17 @@ function attachSectionEventListeners() {
  * Attaches event listeners for subsection interactions
  */
 function attachSubsectionEventListeners() {
-    // Subsection toggle collapse/expand
-    $('.story-tracker-subsection-toggle').off('click').on('click', function() {
-        const $subsection = $(this).closest('.story-tracker-subsection');
-        const subsectionId = $subsection.data('subsection-id');
-        toggleSubsectionCollapse(subsectionId);
-    });
-
-    // Subsection title editing
-    $('.story-tracker-subsection-title').off('blur').on('blur', function() {
-        const subsectionId = $(this).data('subsection-id');
-        const newName = $(this).text().trim();
-        updateSubsectionName(subsectionId, newName);
-    });
-
-    // Add field button
-    $('[data-action="add-field"]').off('click').on('click', function() {
-        const subsectionId = $(this).data('subsection-id');
-        showAddFieldModal(subsectionId);
-    });
-
-    // Delete subsection button
-    $('[data-action="delete-subsection"]').off('click').on('click', function() {
-        const subsectionId = $(this).data('subsection-id');
-        deleteSubsection(subsectionId);
-    });
+    // This function is now empty as subsections are removed
 }
 
 /**
  * Attaches event listeners for field interactions
  */
 function attachFieldEventListeners() {
-    // Field enable/disable toggle
-    $('.story-tracker-field-toggle input').off('change').on('change', function() {
-        const fieldId = $(this).data('field-id');
-        const enabled = $(this).prop('checked');
-        toggleFieldEnabled(fieldId, enabled);
-    });
-
-    // Field name editing
-    $('.story-tracker-field-name').off('blur').on('blur', function() {
-        const fieldId = $(this).data('field-id');
-        const newName = $(this).text().trim();
-        updateFieldName(fieldId, newName);
-    });
-
-    // Field value editing
-    $('.story-tracker-field-value').off('blur').on('blur', function() {
-        const fieldId = $(this).data('field-id');
-        const newValue = $(this).text().trim();
-        updateFieldValue(fieldId, newValue);
+    // Add field button
+    $('[data-action="add-field"]').off('click').on('click', function() {
+        const sectionId = $(this).data('section-id');
+        showAddFieldModal(sectionId);
     });
 
     // Edit field button
@@ -318,18 +261,7 @@ function updateSubsectionName(subsectionId, newName) {
 }
 
 function deleteSubsection(subsectionId) {
-    if (!confirm('Are you sure you want to delete this subsection and all its fields?')) {
-        return;
-    }
-
-    for (const section of extensionSettings.trackerData.sections) {
-        section.subsections = section.subsections.filter(
-            subsection => subsection.id !== subsectionId
-        );
-    }
-    saveSettings();
-    saveChatData();
-    renderTracker();
+    // This function is now empty as subsections are removed
 }
 
 /**
@@ -379,15 +311,21 @@ export function updateField(fieldId, newName, newValue, newPrompt) {
 }
 
 function deleteField(fieldId) {
-    if (!confirm('Are you sure you want to delete this field?')) {
+    if (!confirm('Are you sure you want to delete this story element?')) {
         return;
     }
 
     for (const section of extensionSettings.trackerData.sections) {
-        for (const subsection of section.subsections) {
-            subsection.fields = subsection.fields.filter(
-                field => field.id !== fieldId
-            );
+        section.fields = (section.fields || []).filter(
+            field => field.id !== fieldId
+        );
+
+        if (section.subsections) {
+            for (const subsection of section.subsections) {
+                subsection.fields = (subsection.fields || []).filter(
+                    field => field.id !== fieldId
+                );
+            }
         }
     }
     saveSettings();
@@ -439,42 +377,25 @@ export function addSection(name) {
 }
 
 export function addSubsection(sectionId, name) {
+    // This function is now empty as subsections are removed
+}
+
+export function addField(sectionId, name, type = 'text', prompt = '') {
     ensureTrackerData();
     const section = findSectionById(sectionId);
     if (!section) {
-        console.warn('[Story Tracker] addSubsection: Section not found', sectionId);
+        console.warn('[Story Tracker] addField: Section not found', sectionId);
         return null;
     }
 
-    if (!Array.isArray(section.subsections)) {
-        section.subsections = [];
-    }
-
-    const subsectionName = (typeof name === 'string' && name.trim()) ? name.trim() : 'New Subsection';
-    const subsection = createSubsection(subsectionName);
-    section.subsections.push(subsection);
-    saveSettings();
-    saveChatData();
-    renderTracker();
-    return subsection.id;
-}
-
-export function addField(subsectionId, name, type = 'text', prompt = '') {
-    ensureTrackerData();
-    const subsection = findSubsectionById(subsectionId);
-    if (!subsection) {
-        console.warn('[Story Tracker] addField: Subsection not found', subsectionId);
-        return null;
-    }
-
-    if (!Array.isArray(subsection.fields)) {
-        subsection.fields = [];
+    if (!Array.isArray(section.fields)) {
+        section.fields = [];
     }
 
     const fieldName = (typeof name === 'string' && name.trim()) ? name.trim() : 'New Story Element';
     const fieldType = type || 'text';
     const field = createField(fieldName, prompt, fieldType);
-    subsection.fields.push(field);
+    section.fields.push(field);
     saveSettings();
     saveChatData();
     renderTracker();
@@ -486,9 +407,7 @@ export function addField(subsectionId, name, type = 'text', prompt = '') {
  */
 
 function showAddSubsectionModal(sectionId) {
-    import('../ui/modals.js').then(module => {
-        module.showAddSubsectionModal(sectionId);
-    });
+    // This function is now empty as subsections are removed
 }
 
 function showAddFieldModal(subsectionId) {
@@ -524,9 +443,14 @@ function findSubsectionById(subsectionId) {
 function findFieldById(fieldId) {
     ensureTrackerData();
     for (const section of extensionSettings.trackerData.sections) {
-        for (const subsection of section.subsections || []) {
-            const field = (subsection.fields || []).find(f => f.id === fieldId);
-            if (field) return field;
+        const field = (section.fields || []).find(f => f.id === fieldId);
+        if (field) return field;
+
+        if (section.subsections) {
+            for (const subsection of section.subsections) {
+                const field = (subsection.fields || []).find(f => f.id === fieldId);
+                if (field) return field;
+            }
         }
     }
     return null;
