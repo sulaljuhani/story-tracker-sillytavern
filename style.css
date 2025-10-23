@@ -240,6 +240,16 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     overflow-x: hidden;
 }
 
+.story-tracker-empty {
+    border: 1px dashed var(--st-border);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    text-align: center;
+    color: var(--st-text);
+    opacity: 0.7;
+    font-style: italic;
+}
+
 .story-tracker-section:empty {
     display: none;
 }

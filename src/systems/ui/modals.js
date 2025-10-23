@@ -210,12 +210,51 @@ export function showAddSectionModal() {
     window.addNewSection = () => {
         const sectionName = $('#section-name').val().trim();
         if (sectionName) {
-            // Import and call the add section function
             import('../rendering/tracker.js').then(module => {
-                if (module.addSection) {
+                if (typeof module.addSection === 'function') {
                     module.addSection(sectionName);
-                    closeSettingsPopup();
                 }
+                closeSettingsPopup();
+            }).catch(error => {
+                console.error('[Story Tracker] Failed to add section:', error);
+            });
+        }
+    };
+
+    openSettingsPopup();
+}
+
+
+/**
+ * Shows the add subsection modal
+ */
+export function showAddSubsectionModal(sectionId) {
+    const modalBody = $('#story-tracker-settings-modal .story-tracker-modal-body');
+    modalBody.html(`
+        <div style="padding: 1rem;">
+            <h4>Add New Subsection</h4>
+            <div style="margin: 1rem 0;">
+                <label for="subsection-name" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Subsection Name:</label>
+                <input type="text" id="subsection-name" placeholder="Enter subsection name" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                <button class="story-tracker-btn" onclick="closeSettingsPopup()">Cancel</button>
+                <button class="story-tracker-btn story-tracker-btn-primary" onclick="addNewSubsection()">Add Subsection</button>
+            </div>
+        </div>
+    `);
+
+    window.closeSettingsPopup = closeSettingsPopup;
+    window.addNewSubsection = () => {
+        const subsectionName = $('#subsection-name').val().trim();
+        if (subsectionName) {
+            import('../rendering/tracker.js').then(module => {
+                if (typeof module.addSubsection === 'function') {
+                    module.addSubsection(sectionId, subsectionName);
+                }
+                closeSettingsPopup();
+            }).catch(error => {
+                console.error('[Story Tracker] Failed to add subsection:', error);
             });
         }
     };
@@ -246,23 +285,24 @@ export function showAddFieldModal(subsectionId) {
             </div>
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                 <button class="story-tracker-btn" onclick="closeFieldPopup()">Cancel</button>
-                <button class="story-tracker-btn story-tracker-btn-primary" onclick="addNewField('${subsectionId}')">Add Field</button>
+                <button class="story-tracker-btn story-tracker-btn-primary" onclick="addNewField()">Add Field</button>
             </div>
         </div>
     `);
 
     // Make functions available globally for onclick handlers
     window.closeFieldPopup = closeFieldPopup;
-    window.addNewField = (subsectionId) => {
+    window.addNewField = () => {
         const fieldName = $('#field-name').val().trim();
         const fieldType = $('#field-type').val();
         if (fieldName) {
-            // Import and call the add field function
             import('../rendering/tracker.js').then(module => {
-                if (module.addField) {
+                if (typeof module.addField === 'function') {
                     module.addField(subsectionId, fieldName, fieldType);
-                    closeFieldPopup();
                 }
+                closeFieldPopup();
+            }).catch(error => {
+                console.error('[Story Tracker] Failed to add field:', error);
             });
         }
     };

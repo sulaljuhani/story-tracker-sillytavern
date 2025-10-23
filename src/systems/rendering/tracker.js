@@ -3,7 +3,7 @@
  * Handles rendering of the story tracker UI
  */
 
-import { extensionSettings, $sectionsContainer } from '../../core/state.js';
+import { extensionSettings, $sectionsContainer, createSection, createSubsection, createField } from '../../core/state.js';
 import { saveSettings, saveChatData } from '../../core/persistence.js';
 
 // Type imports
@@ -80,7 +80,8 @@ export function renderSection(section) {
  */
 export function renderSubsection(subsection) {
     const collapsedClass = subsection.collapsed ? 'collapsed' : '';
-    const fieldsHtml = subsection.fields.map(field => renderField(field)).join('');
+    const fieldsHtml = (subsection.fields || []).map(field => renderField(field)).join('');
+    const contentHtml = fieldsHtml || '<div class="story-tracker-empty">No fields yet. Click the plus button to add one.</div>';
 
     return `
         <div class="story-tracker-subsection" data-subsection-id="${subsection.id}">
@@ -99,7 +100,7 @@ export function renderSubsection(subsection) {
                 </div>
             </div>
             <div class="story-tracker-subsection-content" style="display: ${subsection.collapsed ? 'none' : 'block'}">
-                ${fieldsHtml}
+                ${contentHtml}
             </div>
         </div>
     `;
@@ -381,6 +382,92 @@ function deleteField(fieldId) {
     renderTracker();
 }
 
+
+function ensureTrackerData() {
+    if (!extensionSettings.trackerData) {
+        extensionSettings.trackerData = { sections: [] };
+    }
+    if (!Array.isArray(extensionSettings.trackerData.sections)) {
+        extensionSettings.trackerData.sections = [];
+    }
+
+    for (const section of extensionSettings.trackerData.sections) {
+        if (!Array.isArray(section.subsections)) {
+            section.subsections = [];
+        }
+        for (const subsection of section.subsections) {
+            if (!Array.isArray(subsection.fields)) {
+                subsection.fields = [];
+            }
+        }
+    }
+}
+
+export function addSection(name) {
+    ensureTrackerData();
+    const sectionName = (typeof name === 'string' && name.trim()) ? name.trim() : 'New Section';
+    const section = createSection(sectionName);
+
+    if (!Array.isArray(section.subsections)) {
+        section.subsections = [];
+    }
+
+    // Provide an initial subsection so users can add fields immediately
+    if (section.subsections.length === 0) {
+        const defaultSubsection = createSubsection('Story Elements');
+        section.subsections.push(defaultSubsection);
+    }
+
+    extensionSettings.trackerData.sections.push(section);
+    saveSettings();
+    saveChatData();
+    renderTracker();
+    return section.id;
+}
+
+export function addSubsection(sectionId, name) {
+    ensureTrackerData();
+    const section = findSectionById(sectionId);
+    if (!section) {
+        console.warn('[Story Tracker] addSubsection: Section not found', sectionId);
+        return null;
+    }
+
+    if (!Array.isArray(section.subsections)) {
+        section.subsections = [];
+    }
+
+    const subsectionName = (typeof name === 'string' && name.trim()) ? name.trim() : 'New Subsection';
+    const subsection = createSubsection(subsectionName);
+    section.subsections.push(subsection);
+    saveSettings();
+    saveChatData();
+    renderTracker();
+    return subsection.id;
+}
+
+export function addField(subsectionId, name, type = 'text') {
+    ensureTrackerData();
+    const subsection = findSubsectionById(subsectionId);
+    if (!subsection) {
+        console.warn('[Story Tracker] addField: Subsection not found', subsectionId);
+        return null;
+    }
+
+    if (!Array.isArray(subsection.fields)) {
+        subsection.fields = [];
+    }
+
+    const fieldName = (typeof name === 'string' && name.trim()) ? name.trim() : 'New Field';
+    const fieldType = type || 'text';
+    const field = createField(fieldName, '', fieldType);
+    subsection.fields.push(field);
+    saveSettings();
+    saveChatData();
+    renderTracker();
+    return field.id;
+}
+
 /**
  * Modal functions (placeholders - will be implemented in UI module)
  */
@@ -408,23 +495,30 @@ function showEditFieldModal(fieldId) {
  */
 
 function findSectionById(sectionId) {
+    ensureTrackerData();
     return extensionSettings.trackerData.sections.find(section => section.id === sectionId);
 }
 
 function findSubsectionById(subsectionId) {
+    ensureTrackerData();
     for (const section of extensionSettings.trackerData.sections) {
-        const subsection = section.subsections.find(sub => sub.id === subsectionId);
+        const subsection = (section.subsections || []).find(sub => sub.id === subsectionId);
         if (subsection) return subsection;
     }
     return null;
 }
 
 function findFieldById(fieldId) {
+    ensureTrackerData();
     for (const section of extensionSettings.trackerData.sections) {
-        for (const subsection of section.subsections) {
-            const field = subsection.fields.find(f => f.id === fieldId);
+        for (const subsection of section.subsections || []) {
+            const field = (subsection.fields || []).find(f => f.id === fieldId);
             if (field) return field;
         }
     }
     return null;
+}
+
+export function getFieldById(fieldId) {
+    return findFieldById(fieldId);
 }
