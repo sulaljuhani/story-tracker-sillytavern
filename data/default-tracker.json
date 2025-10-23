@@ -1,0 +1,110 @@
+{
+  "sections": [
+    {
+      "id": "section_story_overview",
+      "name": "Story Overview",
+      "collapsed": false,
+      "subsections": [
+        {
+          "id": "subsection_main_plot",
+          "name": "Main Plot",
+          "collapsed": false,
+          "fields": [
+            {
+              "id": "field_story_goal",
+              "name": "Primary Goal",
+              "prompt": "Summarize the protagonist's primary objective.",
+              "type": "text",
+              "enabled": true,
+              "value": ""
+            },
+            {
+              "id": "field_story_conflict",
+              "name": "Key Conflict",
+              "prompt": "Describe the main conflict currently driving the story.",
+              "type": "text",
+              "enabled": true,
+              "value": ""
+            }
+          ]
+        },
+        {
+          "id": "subsection_recent_events",
+          "name": "Recent Events",
+          "collapsed": false,
+          "fields": [
+            {
+              "id": "field_story_last_event",
+              "name": "Last Major Event",
+              "prompt": "Detail the latest significant development in the story.",
+              "type": "text",
+              "enabled": true,
+              "value": ""
+            },
+            {
+              "id": "field_story_next_steps",
+              "name": "Next Steps",
+              "prompt": "List the planned actions or scenes that should follow.",
+              "type": "text",
+              "enabled": true,
+              "value": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "section_characters",
+      "name": "Characters",
+      "collapsed": false,
+      "subsections": [
+        {
+          "id": "subsection_protagonist",
+          "name": "Protagonist",
+          "collapsed": false,
+          "fields": [
+            {
+              "id": "field_character_name",
+              "name": "Name",
+              "prompt": "Character's full name.",
+              "type": "text",
+              "enabled": true,
+              "value": ""
+            },
+            {
+              "id": "field_character_motivation",
+              "name": "Motivation",
+              "prompt": "What drives this character right now?",
+              "type": "text",
+              "enabled": true,
+              "value": ""
+            }
+          ]
+        },
+        {
+          "id": "subsection_antagonist",
+          "name": "Antagonist",
+          "collapsed": false,
+          "fields": [
+            {
+              "id": "field_antagonist_goal",
+              "name": "Goal",
+              "prompt": "Summarize the antagonist's objective.",
+              "type": "text",
+              "enabled": true,
+              "value": ""
+            },
+            {
+              "id": "field_antagonist_pressure",
+              "name": "Pressure Points",
+              "prompt": "How is the antagonist applying pressure?",
+              "type": "text",
+              "enabled": true,
+              "value": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
