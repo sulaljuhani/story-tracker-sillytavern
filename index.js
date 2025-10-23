@@ -78,12 +78,18 @@ function addExtensionSettings() {
  * Initializes the UI for the extension.
  */
 async function initUI() {
-    // Load the HTML template using fetch with correct path
-    const templateUrl = `/scripts/extensions/third-party/story-tracker-sillytavern/template.html`;
+    const base = new URL('.', import.meta.url);
+    const templateUrl = new URL('./template.html', base);
     const templateHtml = await (await fetch(templateUrl, { cache: 'no-cache' })).text();
 
-    // Append panel to body - positioning handled by CSS
-    $('body').append(templateHtml);
+    const st = SillyTavern.getContext();
+    st.ui.registerExtension({
+        id: 'story-tracker',
+        name: 'Story Tracker',
+        init: async ({ root }) => {
+            root.innerHTML = templateHtml;
+        },
+    });
 
     // Cache UI elements using state setters
     setPanelContainer($('#story-tracker-panel'));
@@ -146,6 +152,7 @@ async function initUI() {
     renderTracker();
 
     // Initialize SortableJS
+    const { default: Sortable } = await import(new URL('./src/lib/sortable.min.js', base));
     const sectionsContainer = document.getElementById('story-tracker-sections');
     new Sortable(sectionsContainer, {
         animation: 150,

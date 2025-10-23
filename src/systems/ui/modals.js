@@ -10,7 +10,7 @@ import {
 } from '../../core/state.js';
 import { saveSettings, saveChatData } from '../../core/persistence.js';
 import { loadDefaultTrackerTemplate, updateTrackerData, getTrackerData, setTrackerDataFormat } from '../../core/dataManager.js';
-import { serializeTrackerData, parseTrackerData, detectFormatFromFilename, normalizeFormat, FORMAT_JSON, FORMAT_YAML } from '../../core/serialization.js';
+import { serializeTrackerData, parseTrackerData, FORMAT_JSON } from '../../core/serialization.js';
 
 /**
  * SettingsModal - Manages the settings popup modal

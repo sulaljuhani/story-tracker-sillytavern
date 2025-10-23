@@ -11,11 +11,11 @@ import {
     serializeTrackerData
 } from './serialization.js';
 
-const DATA_FOLDER = `${extensionAssetsBasePath}/data`;
-const DEFAULT_PRESET_PATH = `${DATA_FOLDER}/default-preset.json`;
+const base = new URL('.', import.meta.url);
+const DEFAULT_PRESET_PATH = new URL('../../data/default-preset.json', base);
 
 export async function loadDefaultTrackerTemplate() {
-    const response = await fetch(`/${DEFAULT_PRESET_PATH}`, { cache: 'no-cache' });
+    const response = await fetch(DEFAULT_PRESET_PATH, { cache: 'no-cache' });
     if (!response.ok) {
         throw new Error(`Failed to load default tracker preset.`);
     }
