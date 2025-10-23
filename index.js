@@ -18,7 +18,6 @@ import { updateTrackerData } from './src/systems/generation/apiClient.js';
 import { renderTracker } from './src/systems/rendering/tracker.js';
 import { ensureTrackerDataInitialized } from './src/core/dataManager.js';
 
-import './src/lib/sortable.min.js';
 // UI Systems modules
 import {
     setupCollapseToggle,

@@ -173,6 +173,15 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     background: var(--st-border);
 }
 
+.story-tracker-field-value:focus,
+.story-tracker-modal input:focus,
+.story-tracker-modal select:focus,
+.story-tracker-modal textarea:focus {
+    background: rgba(0, 0, 0, 0.8) !important;
+    border-color: var(--st-highlight) !important;
+    outline: none;
+}
+
 /* Header - Fixed size, doesn't grow */
 .story-tracker-header {
     display: flex;
