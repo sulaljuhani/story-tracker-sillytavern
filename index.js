@@ -11,9 +11,6 @@ const base = new URL('.', import.meta.url);
 async function init() {
     const st = SillyTavern.getContext();
 
-    // 1. Load settings
-    Object.assign(extensionSettings, defaultSettings, st.settings[extensionName]);
-
     // 2. Load HTML and register panel
     const templateUrl = new URL('./template.html', base);
     const html = await (await fetch(templateUrl)).text();
@@ -22,6 +19,8 @@ async function init() {
         id: 'story-tracker',
         name: 'Story Tracker',
         init: async ({ root }) => {
+            // 1. Load settings
+            Object.assign(extensionSettings, defaultSettings, st.settings[extensionName]);
             root.innerHTML = html;
 
             // 3. Load data
