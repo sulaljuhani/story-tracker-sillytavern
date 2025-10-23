@@ -1,5 +1,7 @@
 {
+    "name": "story-tracker-sillytavern",
     "display_name": "Story Tracker",
+    "id": "story-tracker-sillytavern",
     "loading_order": 10,
     "requires": [],
     "optional": [],

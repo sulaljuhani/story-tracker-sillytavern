@@ -19,7 +19,7 @@ jQuery(async () => {
 
     // 3. Register the extension
     st.ui.registerExtension({
-        id: 'story-tracker',
+        id: extensionName,
         name: 'Story Tracker',
         init: async ({ root }) => {
             root.innerHTML = html;

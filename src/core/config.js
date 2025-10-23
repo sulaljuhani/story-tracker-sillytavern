@@ -3,7 +3,8 @@
  * Extension metadata and constants
  */
 
-export const extensionName = 'third-party/story-tracker-sillytavern';
+export const extensionName = 'story-tracker-sillytavern';
+const extensionPathName = `third-party/${extensionName}`;
 
 /**
  * Dynamically determine extension path based on current location
@@ -12,15 +13,15 @@ export const extensionName = 'third-party/story-tracker-sillytavern';
 const currentScriptPath = import.meta.url;
 const isUserExtension = currentScriptPath.includes('/data/') || currentScriptPath.includes('\\data\\');
 export const extensionFolderPath = isUserExtension
-    ? `data/default-user/extensions/${extensionName}`
-    : `scripts/extensions/${extensionName}`;
+    ? `data/default-user/extensions/${extensionPathName}`
+    : `scripts/extensions/${extensionPathName}`;
 
 export const extensionDisplayName = 'Story Tracker';
 export const extensionVersion = '1.0.0';
 
 export const extensionAssetsBasePath = isUserExtension
-    ? `/data/default-user/extensions/${extensionName}`
-    : `/scripts/extensions/${extensionName}`;
+    ? `/data/default-user/extensions/${extensionPathName}`
+    : `/scripts/extensions/${extensionPathName}`;
 
 /**
  * Default extension settings
