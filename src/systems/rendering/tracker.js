@@ -45,6 +45,7 @@ export function renderTracker() {
     attachSectionEventListeners();
     attachSubsectionEventListeners();
     attachFieldEventListeners();
+    initializeDragAndDrop();
 }
 
 /**
@@ -202,6 +203,78 @@ function attachFieldEventListeners() {
     $('[data-action="delete-field"]').off('click').on('click', function() {
         const fieldId = $(this).data('field-id');
         deleteField(fieldId);
+    });
+}
+
+/**
+ * Initializes drag-and-drop functionality using Sortable.js
+ */
+function initializeDragAndDrop() {
+    if (typeof Sortable === 'undefined') {
+        console.warn('[Story Tracker] Sortable library not available; drag-and-drop disabled');
+        return;
+    }
+
+    const sectionsContainerEl = document.getElementById('story-tracker-sections');
+    if (sectionsContainerEl && sectionsContainerEl.children.length > 0) {
+        Sortable.create(sectionsContainerEl, {
+            animation: 150,
+            handle: '.story-tracker-section-header',
+            draggable: '.story-tracker-section',
+            ghostClass: 'story-tracker-drag-placeholder',
+            onEnd: ({ oldIndex, newIndex }) => {
+                if (oldIndex === newIndex || oldIndex == null || newIndex == null) {
+                    return;
+                }
+
+                ensureTrackerData();
+                const sections = extensionSettings.trackerData.sections || [];
+                const [movedSection] = sections.splice(oldIndex, 1);
+                if (movedSection) {
+                    sections.splice(newIndex, 0, movedSection);
+                    saveSettings();
+                    saveChatData();
+                    renderTracker();
+                }
+            },
+        });
+    }
+
+    document.querySelectorAll('.story-tracker-section').forEach(sectionEl => {
+        const sectionId = sectionEl.getAttribute('data-section-id');
+        const contentEl = sectionEl.querySelector('.story-tracker-section-content');
+        if (!sectionId || !contentEl) {
+            return;
+        }
+
+        if (!contentEl.querySelector('.story-tracker-field')) {
+            return;
+        }
+
+        Sortable.create(contentEl, {
+            animation: 150,
+            handle: '.story-tracker-field',
+            draggable: '.story-tracker-field',
+            ghostClass: 'story-tracker-drag-placeholder',
+            onEnd: ({ oldIndex, newIndex }) => {
+                if (oldIndex === newIndex || oldIndex == null || newIndex == null) {
+                    return;
+                }
+
+                const section = findSectionById(sectionId);
+                if (!section || !Array.isArray(section.fields)) {
+                    return;
+                }
+
+                const [movedField] = section.fields.splice(oldIndex, 1);
+                if (movedField) {
+                    section.fields.splice(newIndex, 0, movedField);
+                    saveSettings();
+                    saveChatData();
+                    renderTracker();
+                }
+            },
+        });
     });
 }
 
