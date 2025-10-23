@@ -18,6 +18,10 @@ export const extensionFolderPath = isUserExtension
 export const extensionDisplayName = 'Story Tracker';
 export const extensionVersion = '1.0.0';
 
+export const extensionAssetsBasePath = isUserExtension
+    ? `/data/default-user/extensions/${extensionName}`
+    : `/scripts/extensions/${extensionName}`;
+
 /**
  * Default extension settings
  */
@@ -37,6 +41,7 @@ export const defaultSettings = {
         highlight: '#e94560'
     },
     enableAnimations: true,
+    dataFormat: 'json',
     mobileFabPosition: {
         top: 'calc(var(--topBarBlockSize) + 60px)',
         right: '12px'

@@ -16,6 +16,7 @@ import { updateTrackerData } from './src/systems/generation/apiClient.js';
 
 // Rendering modules
 import { renderTracker } from './src/systems/rendering/tracker.js';
+import { ensureTrackerDataInitialized } from './src/core/dataManager.js';
 
 // UI Systems modules
 import {
@@ -86,6 +87,8 @@ async function initUI() {
     // Cache UI elements using state setters
     setPanelContainer($('#story-tracker-panel'));
     setSectionsContainer($('#story-tracker-sections'));
+
+    await ensureTrackerDataInitialized();
 
     applyPanelPosition();
     updatePanelVisibility();
