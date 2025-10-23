@@ -8,6 +8,12 @@ import { showSettingsModal } from './src/systems/ui/modals.js';
 
 jQuery(async () => {
     const st = SillyTavern.getContext();
+
+    // Wait for the UI to be ready
+    while (!st.ui) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
     const base = new URL('.', import.meta.url);
 
     // 1. Load settings
