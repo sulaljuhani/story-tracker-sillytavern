@@ -82,7 +82,8 @@ jQuery(async () => {
 
 
             // 4. Load data
-            if (!extensionSettings.trackerData || Object.keys(extensionSettings.trackerData).length === 0) {
+            const hasSections = Array.isArray(extensionSettings.trackerData?.sections) && extensionSettings.trackerData.sections.length > 0;
+            if (!hasSections) {
                 try {
                     const preset = await loadDefaultTrackerTemplate();
                     updateExtensionSettings({

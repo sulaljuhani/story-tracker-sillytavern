@@ -151,27 +151,8 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     }
 }
 
-/* Custom Scrollbar */
-.story-tracker-panel::-webkit-scrollbar,
-.story-tracker-content::-webkit-scrollbar {
-    width: 0.5rem;
-}
 
-.story-tracker-panel::-webkit-scrollbar-track,
-.story-tracker-content::-webkit-scrollbar-track {
-    background: var(--st-accent);
-}
 
-.story-tracker-panel::-webkit-scrollbar-thumb,
-.story-tracker-content::-webkit-scrollbar-thumb {
-    background: var(--st-highlight);
-    border-radius: 0.25em;
-}
-
-.story-tracker-panel::-webkit-scrollbar-thumb:hover,
-.story-tracker-content::-webkit-scrollbar-thumb:hover {
-    background: var(--st-border);
-}
 
 .story-tracker-field-value:focus,
 .story-tracker-modal input:focus,
