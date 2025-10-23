@@ -91,10 +91,14 @@ export function setIsGenerating(value) {
 
 export function setPanelContainer($element) {
     $panelContainer = $element;
+    const length = $panelContainer ? $panelContainer.length : 0;
+    console.log('[Story Tracker] Panel container registered', { length });
 }
 
 export function setSectionsContainer($element) {
     $sectionsContainer = $element;
+    const length = $sectionsContainer ? $sectionsContainer.length : 0;
+    console.log('[Story Tracker] Sections container registered', { length });
 }
 
 /**

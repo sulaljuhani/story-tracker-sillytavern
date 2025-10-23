@@ -16,7 +16,12 @@ import { saveSettings, saveChatData } from '../../core/persistence.js';
  */
 export function renderTracker() {
     if (!$sectionsContainer) {
-        console.warn('[Story Tracker] Sections container not found');
+        console.warn('[Story Tracker] Sections container not initialized');
+        return;
+    }
+
+    if ($sectionsContainer.length === 0) {
+        console.warn('[Story Tracker] Sections container not mounted in DOM');
         return;
     }
 
@@ -34,6 +39,7 @@ export function renderTracker() {
     }
 
     $sectionsContainer.html(html);
+    console.log('[Story Tracker] Rendered sections', { count: trackerData.sections.length });
 
     // Attach event listeners
     attachSectionEventListeners();

@@ -8,6 +8,22 @@ import { updateTrackerData } from './src/systems/generation/apiClient.js';
 import { setupMobileToggle, setupMobileKeyboardHandling, setupContentEditableScrolling } from './src/systems/ui/mobile.js';
 import { setupCollapseToggle, applyPanelPosition, updatePanelVisibility, updateGenerationModeUI } from './src/systems/ui/layout.js';
 
+async function waitForElementConnection(element, label, timeout = 3000) {
+    if (!element) {
+        throw new Error(`[Story Tracker] Missing ${label} element during initialization`);
+    }
+
+    const start = performance.now ? performance.now() : Date.now();
+    while (!element.isConnected) {
+        const now = performance.now ? performance.now() : Date.now();
+        if (now - start >= timeout) {
+            console.warn(`[Story Tracker] ${label} element not connected after ${timeout}ms`);
+            break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 16));
+    }
+}
+
 jQuery(async () => {
     // Wait for SillyTavern to be available
     while (typeof SillyTavern === 'undefined') {
@@ -39,8 +55,18 @@ jQuery(async () => {
             const $root = $(root);
 
             // Cache commonly used elements for other modules
-            setPanelContainer($root.find('#story-tracker-panel'));
-            setSectionsContainer($root.find('#story-tracker-sections'));
+            const panelElement = root.querySelector('#story-tracker-panel');
+            const sectionsElement = root.querySelector('#story-tracker-sections');
+            await Promise.all([
+                waitForElementConnection(panelElement, 'panel'),
+                waitForElementConnection(sectionsElement, 'sections container')
+            ]);
+
+            const $panel = $(panelElement);
+            const $sections = $(sectionsElement);
+            setPanelContainer($panel);
+            setSectionsContainer($sections);
+            console.log('[Story Tracker] Extension root initialized', { panel: $panel.length, sections: $sections.length });
 
             // Wire up UI helpers
             setupSettingsPopup();
