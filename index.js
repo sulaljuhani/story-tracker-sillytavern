@@ -32,6 +32,11 @@ function resolveRegisterExtension(st) {
         { source: 'SillyTavern.extensions.registerExtension', fn: globalThis.SillyTavern?.extensions?.registerExtension, thisArg: globalThis.SillyTavern?.extensions },
         { source: 'context.extensions.register', fn: st?.extensions?.register, thisArg: st?.extensions },
         { source: 'SillyTavern.extensions.register', fn: globalThis.SillyTavern?.extensions?.register, thisArg: globalThis.SillyTavern?.extensions },
+        { source: 'context.registerExtension', fn: st?.registerExtension, thisArg: st },
+        { source: 'context.registerThirdPartyExtension', fn: st?.registerThirdPartyExtension, thisArg: st },
+        { source: 'context.extensions.registerThirdPartyExtension', fn: st?.extensions?.registerThirdPartyExtension, thisArg: st?.extensions },
+        { source: 'SillyTavern.libs.extensions.registerExtension', fn: globalThis.SillyTavern?.libs?.extensions?.registerExtension, thisArg: globalThis.SillyTavern?.libs?.extensions },
+        { source: 'SillyTavern.libs.extensions.registerThirdPartyExtension', fn: globalThis.SillyTavern?.libs?.extensions?.registerThirdPartyExtension, thisArg: globalThis.SillyTavern?.libs?.extensions },
         { source: 'SillyTavern.registerExtension', fn: globalThis.SillyTavern?.registerExtension, thisArg: globalThis.SillyTavern },
     ];
 
@@ -55,6 +60,7 @@ jQuery(async () => {
         }
 
         console.log('[Story Tracker] SillyTavern global keys', Object.keys(SillyTavern || {}));
+        console.log('[Story Tracker] SillyTavern libs keys', Object.keys(SillyTavern?.libs || {}));
 
         // Wait for the UI system to be ready - re-fetch context each iteration
         let st;
@@ -69,7 +75,13 @@ jQuery(async () => {
                     const contextKeys = st ? Object.keys(st) : [];
                     const uiKeys = st?.ui ? Object.keys(st.ui) : [];
                     const extensionsKeys = st?.extensions ? Object.keys(st.extensions) : [];
-                    console.warn('[Story Tracker] Waiting for SillyTavern context', { attempts, hasContext: Boolean(st), contextKeys, hasUi: Boolean(st?.ui), uiKeys, hasExtensions: Boolean(st?.extensions), extensionsKeys });
+                    const registerLikeKeys = contextKeys.filter(key => key.toLowerCase().includes('register'));
+                    console.warn('[Story Tracker] Waiting for SillyTavern context', { attempts, hasContext: Boolean(st), contextKeys, hasUi: Boolean(st?.ui), uiKeys, hasExtensions: Boolean(st?.extensions), extensionsKeys, registerLikeKeys });
+                    try {
+                        console.table(registerLikeKeys.map(key => ({ key, type: typeof st[key] })));
+                    } catch (tableError) {
+                        console.error('[Story Tracker] Failed to table register-like keys', tableError);
+                    }
                     console.dir(st);
                 } catch (error) {
                     console.error('[Story Tracker] Error probing SillyTavern context', error);
