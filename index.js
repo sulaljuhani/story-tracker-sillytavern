@@ -11,7 +11,7 @@ jQuery(async () => {
     const base = new URL('.', import.meta.url);
 
     // 1. Load settings
-    Object.assign(extensionSettings, defaultSettings, st.settings[extensionName]);
+    Object.assign(extensionSettings, defaultSettings, st.settings?.[extensionName] || {});
 
     // 2. Load HTML
     const templateUrl = new URL('./template.html', base);
