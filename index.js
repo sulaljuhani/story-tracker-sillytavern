@@ -36,12 +36,26 @@ jQuery(async () => {
 
         // Wait for the UI system to be ready - re-fetch context each iteration
         let st;
+        let attempts = 0;
         while (!st?.ui?.registerExtension) {
-            console.log('[Story Tracker] Waiting for SillyTavern context');
+            attempts += 1;
+            if (attempts % 20 === 1) {
+                try {
+                    const context = SillyTavern?.getContext?.();
+                    const uiKeys = context?.ui ? Object.keys(context.ui) : [];
+                    console.warn('[Story Tracker] Waiting for SillyTavern context', { attempts, hasContext: Boolean(context), hasUi: Boolean(context?.ui), uiKeys });
+                } catch (error) {
+                    console.error('[Story Tracker] Error probing SillyTavern context', error);
+                }
+            }
             st = SillyTavern.getContext();
+            if (attempts > 300) {
+                throw new Error('[Story Tracker] registerExtension not available after 300 attempts');
+            }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
 
+        console.log('[Story Tracker] Context ready, registering extension');
         const base = new URL('.', import.meta.url);
 
         // 1. Load settings
