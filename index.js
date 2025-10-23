@@ -249,7 +249,7 @@ jQuery(async () => {
         try {
             registrationInfo = await waitForRegistrationFunction();
         } catch (waitError) {
-            console.error('[Story Tracker] Registration function unavailable', waitError);
+            console.warn('[Story Tracker] Registration function unavailable, falling back to manual mounting', waitError);
         }
 
         const base = new URL('.', import.meta.url);
