@@ -49,12 +49,195 @@ function resolveRegisterExtension(st) {
     return null;
 }
 
+async function waitForRegistrationFunction({ maxAttempts = 300, delayMs = 100 } = {}) {
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+        attempts += 1;
+        const st = globalThis.SillyTavern?.getContext?.();
+
+        if (st) {
+            const registration = resolveRegisterExtension(st);
+            if (registration) {
+                return { st, registration, attempts };
+            }
+
+            if (attempts % 20 === 1) {
+                try {
+                    const contextKeys = Object.keys(st);
+                    const uiKeys = st?.ui ? Object.keys(st.ui) : [];
+                    const extensionsKeys = st?.extensions ? Object.keys(st.extensions) : [];
+                    const registerLikeKeys = contextKeys.filter(key => key.toLowerCase().includes('register'));
+                    const extensionLikeKeys = contextKeys.filter(key => key.toLowerCase().includes('extension'));
+                    console.warn('[Story Tracker] Waiting for SillyTavern context', {
+                        attempts,
+                        hasContext: true,
+                        contextKeys,
+                        hasUi: Boolean(st?.ui),
+                        uiKeys,
+                        hasExtensions: Boolean(st?.extensions),
+                        extensionsKeys,
+                        registerLikeKeys,
+                        extensionLikeKeys,
+                    });
+                    if (st?.extensions) {
+                        console.log('[Story Tracker] st.extensions type', Object.prototype.toString.call(st.extensions));
+                        try {
+                            console.log('[Story Tracker] st.extensions keys', Object.keys(st.extensions));
+                        } catch (extError) {
+                            console.error('[Story Tracker] Failed to inspect st.extensions', extError);
+                        }
+                    } else {
+                        console.log('[Story Tracker] st.extensions missing');
+                    }
+                    if (st?.extension_settings) {
+                        console.log('[Story Tracker] st.extension_settings keys', Object.keys(st.extension_settings));
+                    }
+                    if (st?.extensionSettings) {
+                        console.log('[Story Tracker] st.extensionSettings keys', Object.keys(st.extensionSettings));
+                    }
+                    if (typeof extensionName !== 'undefined') {
+                        console.log('[Story Tracker] extension_settings entry', st?.extension_settings?.[extensionName]);
+                        console.log('[Story Tracker] extensionSettings entry', st?.extensionSettings?.[extensionName]);
+                    }
+                    if (st?.eventTypes) {
+                        const extensionEvents = Object.entries(st.eventTypes)
+                            .filter(([key, value]) => String(key).toLowerCase().includes('extension')
+                                || String(value).toLowerCase().includes('extension'));
+                        if (extensionEvents.length > 0) {
+                            console.log('[Story Tracker] extension-related events', extensionEvents);
+                        }
+                    }
+                    console.log('[Story Tracker] context.extensionController type', typeof st?.extensionController);
+                    console.log('[Story Tracker] context.extensionsManager type', typeof st?.extensionsManager);
+                    console.log('[Story Tracker] context.modules?.extensions type', typeof st?.modules?.extensions);
+                    if (st?.modules?.extensions) {
+                        console.log('[Story Tracker] context.modules.extensions keys', Object.keys(st.modules.extensions));
+                    }
+                    if (typeof extensionName !== 'undefined') {
+                        console.log('[Story Tracker] extension_settings entry', st?.extension_settings?.[extensionName]);
+                        console.log('[Story Tracker] extensionSettings entry', st?.extensionSettings?.[extensionName]);
+                    }
+                    try {
+                        console.table(registerLikeKeys.map(key => ({ key, type: typeof st[key] })));
+                    } catch (tableError) {
+                        console.error('[Story Tracker] Failed to table register-like keys', tableError);
+                    }
+                    console.dir(st);
+                } catch (probeError) {
+                    console.error('[Story Tracker] Error probing SillyTavern context', probeError);
+                }
+            }
+        } else if (attempts % 20 === 1) {
+            console.warn('[Story Tracker] SillyTavern context unavailable', { attempts });
+        }
+
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+
+    throw new Error(`[Story Tracker] registerExtension not available after ${maxAttempts} attempts`);
+}
+
+let isExtensionInitialized = false;
+
+async function initializeExtension(root, html, base, { viaFallback = false } = {}) {
+    if (isExtensionInitialized) {
+        console.warn('[Story Tracker] initializeExtension called more than once – skipping duplicate init');
+        return;
+    }
+
+    const st = globalThis.SillyTavern?.getContext?.();
+    if (!st) {
+        throw new Error('[Story Tracker] Cannot initialize – SillyTavern context unavailable');
+    }
+
+    root.innerHTML = html;
+    const $root = $(root);
+
+    const panelElement = root.querySelector('#story-tracker-panel');
+    const sectionsElement = root.querySelector('#story-tracker-sections');
+    await Promise.all([
+        waitForElementConnection(panelElement, 'panel'),
+        waitForElementConnection(sectionsElement, 'sections container')
+    ]);
+
+    const $panel = $(panelElement);
+    const $sections = $(sectionsElement);
+    setPanelContainer($panel);
+    setSectionsContainer($sections);
+    console.log('[Story Tracker] Extension root initialized', { viaFallback, panel: $panel.length, sections: $sections.length });
+
+    setupSettingsPopup();
+    setupFieldPopup();
+    setupPresetManager();
+    setupCollapseToggle();
+    setupMobileToggle();
+    setupMobileKeyboardHandling();
+    setupContentEditableScrolling();
+    applyPanelPosition();
+    updatePanelVisibility();
+    updateGenerationModeUI();
+
+    const hasSections = Array.isArray(extensionSettings.trackerData?.sections) && extensionSettings.trackerData.sections.length > 0;
+    if (!hasSections) {
+        try {
+            const preset = await loadDefaultTrackerTemplate();
+            updateExtensionSettings({
+                systemPrompt: preset.systemPrompt,
+                trackerData: preset.trackerData,
+                currentPreset: 'Default',
+            });
+            saveCurrentPreset('Default');
+        } catch (error) {
+            console.error('[Story Tracker] Failed to load default preset:', error);
+        }
+    }
+
+    renderTracker();
+
+    $root.find('#story-tracker-settings').on('click', () => showSettingsModal());
+    $root.find('#story-tracker-manual-update').on('click', async () => {
+        await updateTrackerData(renderTracker);
+    });
+    $root.find('#edit-preset-prompt').on('click', () => {
+        import(new URL('./src/core/presetManager.js', base)).then(module => module.showEditPromptModal());
+    });
+
+    isExtensionInitialized = true;
+    console.log('[Story Tracker] initializeExtension completed', { viaFallback });
+}
+
+async function bootstrapFallback(html, base) {
+    console.warn('[Story Tracker] Falling back to manual bootstrap. Extension toggling via UI may be unavailable.');
+    const preferredParents = [
+        '#extensionsRight',
+        '#extensionsLeft',
+        '#extensions-container',
+        '#story-tracker-container',
+        '#extensions-panel',
+        'body',
+    ];
+
+    let parent = preferredParents
+        .map(selector => document.querySelector(selector))
+        .find(Boolean) || document.body;
+
+    let root = document.getElementById('story-tracker-extension-root');
+    if (!root) {
+        root = document.createElement('div');
+        root.id = 'story-tracker-extension-root';
+        root.classList.add('story-tracker-extension-root');
+        parent.appendChild(root);
+    }
+
+    await initializeExtension(root, html, base, { viaFallback: true });
+}
+
 console.log('[Story Tracker] Script loaded');
 
 jQuery(async () => {
     console.log('[Story Tracker] jQuery ready');
     try {
-        // Wait for SillyTavern to be available
         while (typeof SillyTavern === 'undefined') {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
@@ -62,125 +245,58 @@ jQuery(async () => {
         console.log('[Story Tracker] SillyTavern global keys', Object.keys(SillyTavern || {}));
         console.log('[Story Tracker] SillyTavern libs keys', Object.keys(SillyTavern?.libs || {}));
 
-        // Wait for the UI system to be ready - re-fetch context each iteration
-        let st;
-        let registration = null;
-        let attempts = 0;
-        while (!registration) {
-            attempts += 1;
-            st = SillyTavern?.getContext?.();
-
-            if (attempts % 20 === 1) {
-                try {
-                    const contextKeys = st ? Object.keys(st) : [];
-                    const uiKeys = st?.ui ? Object.keys(st.ui) : [];
-                    const extensionsKeys = st?.extensions ? Object.keys(st.extensions) : [];
-                    const registerLikeKeys = contextKeys.filter(key => key.toLowerCase().includes('register'));
-                    console.warn('[Story Tracker] Waiting for SillyTavern context', { attempts, hasContext: Boolean(st), contextKeys, hasUi: Boolean(st?.ui), uiKeys, hasExtensions: Boolean(st?.extensions), extensionsKeys, registerLikeKeys });
-                    try {
-                        console.table(registerLikeKeys.map(key => ({ key, type: typeof st[key] })));
-                    } catch (tableError) {
-                        console.error('[Story Tracker] Failed to table register-like keys', tableError);
-                    }
-                    console.dir(st);
-                } catch (error) {
-                    console.error('[Story Tracker] Error probing SillyTavern context', error);
-                }
-            }
-
-            registration = resolveRegisterExtension(st);
-            if (registration) {
-                break;
-            }
-
-            if (attempts > 300) {
-                throw new Error('[Story Tracker] registerExtension not available after 300 attempts');
-            }
-
-            await new Promise(resolve => setTimeout(resolve, 100));
+        let registrationInfo = null;
+        try {
+            registrationInfo = await waitForRegistrationFunction();
+        } catch (waitError) {
+            console.error('[Story Tracker] Registration function unavailable', waitError);
         }
 
-        console.log('[Story Tracker] Context ready, registering extension via', registration.source);
         const base = new URL('.', import.meta.url);
-
-        // 1. Load settings
-        Object.assign(extensionSettings, defaultSettings, st.settings?.[extensionName] || {});
-
-        // 2. Load HTML
         const templateUrl = new URL('./template.html', base);
         const html = await (await fetch(templateUrl)).text();
 
-        // 3. Register the extension
-        console.log('[Story Tracker] Registering extension');
-        const registerFn = registration.fn;
-        const registerThis = registration.thisArg ?? st?.ui ?? globalThis.SillyTavern?.ui ?? st ?? globalThis.SillyTavern;
-        console.log('[Story Tracker] Using register function', { source: registration.source, arity: registerFn.length });
-        registerFn.call(registerThis, {
-            id: extensionName,
-            name: extensionDisplayName,
-            init: async ({ root }) => {
-                root.innerHTML = html;
-                const $root = $(root);
+        const st = globalThis.SillyTavern?.getContext?.();
+        if (st?.settings) {
+            Object.assign(extensionSettings, defaultSettings, st.settings?.[extensionName] || {});
+        } else {
+            Object.assign(extensionSettings, defaultSettings);
+        }
 
-                // Cache commonly used elements for other modules
-                const panelElement = root.querySelector('#story-tracker-panel');
-                const sectionsElement = root.querySelector('#story-tracker-sections');
-                await Promise.all([
-                    waitForElementConnection(panelElement, 'panel'),
-                    waitForElementConnection(sectionsElement, 'sections container')
-                ]);
+        if (registrationInfo?.registration) {
+            console.log('[Story Tracker] Context ready, registering extension via', registrationInfo.registration.source);
+            console.log('[Story Tracker] Registering extension');
+            const registerFn = registrationInfo.registration.fn;
+            const registerThis = registrationInfo.registration.thisArg
+                ?? registrationInfo.st?.ui
+                ?? globalThis.SillyTavern?.ui
+                ?? registrationInfo.st
+                ?? globalThis.SillyTavern;
+            console.log('[Story Tracker] Using register function', {
+                source: registrationInfo.registration.source,
+                arity: registerFn.length,
+            });
+            registerFn.call(registerThis, {
+                id: extensionName,
+                name: extensionDisplayName,
+                init: async ({ root }) => {
+                    await initializeExtension(root, html, base, { viaFallback: false });
+                },
+            });
+        } else {
+            await bootstrapFallback(html, base);
+        }
 
-                const $panel = $(panelElement);
-                const $sections = $(sectionsElement);
-                setPanelContainer($panel);
-                setSectionsContainer($sections);
-                console.log('[Story Tracker] Extension root initialized', { panel: $panel.length, sections: $sections.length });
-
-                // Wire up UI helpers
-                setupSettingsPopup();
-                setupFieldPopup();
-                setupPresetManager();
-                setupCollapseToggle();
-                setupMobileToggle();
-                setupMobileKeyboardHandling();
-                setupContentEditableScrolling();
-                applyPanelPosition();
-                updatePanelVisibility();
-                updateGenerationModeUI();
-
-                // 4. Load data
-                const hasSections = Array.isArray(extensionSettings.trackerData?.sections) && extensionSettings.trackerData.sections.length > 0;
-                if (!hasSections) {
-                    try {
-                        const preset = await loadDefaultTrackerTemplate();
-                        updateExtensionSettings({
-                            systemPrompt: preset.systemPrompt,
-                            trackerData: preset.trackerData,
-                            currentPreset: 'Default',
-                        });
-                        saveCurrentPreset('Default');
-                    } catch (error) {
-                        console.error('[Story Tracker] Failed to load default preset:', error);
-                    }
-                }
-
-                // 5. Initial render
-                renderTracker();
-
-                // 6. Attach event listeners
-                $root.find('#story-tracker-settings').on('click', () => showSettingsModal());
-                $root.find('#story-tracker-manual-update').on('click', async () => {
-                    await updateTrackerData(renderTracker);
-                });
-                $root.find('#edit-preset-prompt').on('click', () => {
-                    import(new URL('./src/core/presetManager.js', base)).then(module => module.showEditPromptModal());
-                });
-            },
-        });
-
-        console.log('[Story Tracker] ✅ Extension loaded successfully');
+        console.log('[Story Tracker] ✅ Extension bootstrap completed');
     } catch (error) {
         console.error('[Story Tracker] Initialization failed', error);
+        try {
+            const base = new URL('.', import.meta.url);
+            const templateUrl = new URL('./template.html', base);
+            const html = await (await fetch(templateUrl)).text();
+            await bootstrapFallback(html, base);
+        } catch (fallbackError) {
+            console.error('[Story Tracker] Fallback bootstrap failed', fallbackError);
+        }
     }
 });
-
