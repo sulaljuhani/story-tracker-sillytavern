@@ -240,6 +240,13 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     overflow-x: hidden;
 }
 
+.story-tracker-loader {
+    padding: 2rem;
+    text-align: center;
+    color: var(--st-text);
+    opacity: 0.8;
+}
+
 .story-tracker-empty {
     border: 1px dashed var(--st-border);
     border-radius: 0.5rem;

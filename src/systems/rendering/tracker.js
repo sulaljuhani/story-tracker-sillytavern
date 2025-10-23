@@ -22,8 +22,8 @@ export function renderTracker() {
 
     const trackerData = extensionSettings.trackerData;
 
-    if (!trackerData || !trackerData.sections) {
-        $sectionsContainer.html('<div class="story-tracker-empty">No tracker data. Add a section to get started.</div>');
+    if (!trackerData || !trackerData.sections || trackerData.sections.length === 0) {
+        $sectionsContainer.html('<div class="story-tracker-empty">No tracker data. Add a section or load a template to get started.</div>');
         return;
     }
 
@@ -362,6 +362,17 @@ function updateFieldValue(fieldId, newValue) {
         field.value = newValue;
         saveSettings();
         saveChatData();
+    }
+}
+
+export function updateField(fieldId, newName, newValue) {
+    const field = findFieldById(fieldId);
+    if (field) {
+        if (newName) field.name = newName;
+        if (newValue !== undefined) field.value = newValue;
+        saveSettings();
+        saveChatData();
+        renderTracker();
     }
 }
 

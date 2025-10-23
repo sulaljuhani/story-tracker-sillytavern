@@ -29,19 +29,32 @@ export async function loadDefaultTrackerTemplate(format = FORMAT_JSON) {
 }
 
 export async function ensureTrackerDataInitialized() {
+    console.log('[Story Tracker] Ensuring tracker data is initialized...');
     const hasSections = Array.isArray(extensionSettings?.trackerData?.sections)
         && extensionSettings.trackerData.sections.length > 0;
 
     if (hasSections) {
+        console.log('[Story Tracker] Tracker data already exists. Skipping initialization.');
         return false;
     }
 
-    const template = await loadDefaultTrackerTemplate(FORMAT_JSON);
-    updateTrackerData(template, { skipPersist: true });
-    extensionSettings.dataFormat = FORMAT_JSON;
-    saveSettings();
-    saveChatData();
-    return true;
+    try {
+        console.log('[Story Tracker] No tracker data found. Loading default template...');
+        const template = await loadDefaultTrackerTemplate(FORMAT_JSON);
+        updateTrackerData(template, { skipPersist: true });
+        extensionSettings.dataFormat = FORMAT_JSON;
+        saveSettings();
+        saveChatData();
+        console.log('[Story Tracker] Default template loaded and applied.');
+        return true;
+    } catch (error) {
+        console.error('[Story Tracker] Failed to load default tracker template:', error);
+        // Initialize with empty data to prevent further errors
+        updateTrackerData({ sections: [] }, { skipPersist: true });
+        saveSettings();
+        saveChatData();
+        return false;
+    }
 }
 
 export function getTrackerData() {

@@ -88,10 +88,18 @@ async function initUI() {
     setPanelContainer($('#story-tracker-panel'));
     setSectionsContainer($('#story-tracker-sections'));
 
-    await ensureTrackerDataInitialized();
+    // Show loading indicator
+    $sectionsContainer.html('<div class="story-tracker-loader">Loading...</div>');
+
+    const wasInitialized = await ensureTrackerDataInitialized();
 
     applyPanelPosition();
     updatePanelVisibility();
+
+    // Re-render if we just loaded the default template
+    if (wasInitialized) {
+        renderTracker();
+    }
 
     // Set up event listeners
     $('#story-tracker-add-section').on('click', function() {

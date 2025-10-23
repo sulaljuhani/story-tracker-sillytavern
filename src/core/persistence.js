@@ -52,6 +52,11 @@ export function saveChatData() {
 export function loadChatData() {
     const st = SillyTavern.getContext();
     if (st.chat && st.chat.metadata && st.chat.metadata.story_tracker) {
-        extensionSettings.trackerData = st.chat.metadata.story_tracker;
+        const chatData = st.chat.metadata.story_tracker;
+        // Only load chat data if it's not empty, to avoid overwriting a fresh default template
+        if (Array.isArray(chatData.sections) && chatData.sections.length > 0) {
+            console.log('[Story Tracker] Loading tracker data from chat metadata.');
+            extensionSettings.trackerData = chatData;
+        }
     }
 }

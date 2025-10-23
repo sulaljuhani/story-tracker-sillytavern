@@ -546,9 +546,8 @@ export function showEditFieldModal(fieldId) {
                 window.closeFieldPopup = closeFieldPopup;
                 window.updateField = (fieldId) => {
                     const newName = $('#edit-field-name').val().trim();
-                    const newValue = $('#edit-field-value').val().trim();
+                    const newValue = $('#edit-field-value').val(); // Don't trim value, as it might be intentional whitespace
                     if (newName) {
-                        // Import and call the update field function
                         import('../rendering/tracker.js').then(module => {
                             if (module.updateField) {
                                 module.updateField(fieldId, newName, newValue);
@@ -628,4 +627,3 @@ export function showSettingsModal() {
 
     openSettingsPopup();
 }
-

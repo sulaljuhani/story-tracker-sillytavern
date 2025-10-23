@@ -1,65 +1,32 @@
-# Final Code Review - Story Tracker Extension
+# Code Review - 2025-10-23
 
-This document outlines the final comprehensive code review of the Story Tracker extension.
+## Summary of Changes
 
-## 1. `src/core/` - The Foundation
+This update fixes several critical bugs that prevented the Story Tracker extension from loading and functioning correctly. The core issue was a data initialization race condition, which has now been resolved.
 
-### `config.js`
-- [x] **`extensionName`**: Correctly set to `third-party/story-tracker-sillytavern`.
-- [x] **`extensionFolderPath`**: Dynamic path detection is correctly implemented.
-- [x] **`defaultSettings`**: All settings are relevant to the Story Tracker and there are no RPG Companion leftovers.
+### 1. Fixed Data Initialization Flow
+- **`index.js`**:
+  - Modified the `initUI` function to properly `await` the `ensureTrackerDataInitialized` function.
+  - Added a re-rendering call (`renderTracker()`) after the initial data is loaded to ensure the UI updates correctly.
+  - Added a loading indicator to provide user feedback during initialization.
+- **`src/core/dataManager.js`**:
+  - Improved `ensureTrackerDataInitialized` with better error handling and logging.
+  - It now correctly loads the default template when no data is present.
+- **`src/core/persistence.js`**:
+  - Updated `loadChatData` to prevent empty chat metadata from overwriting a freshly loaded default template.
 
-### `state.js`
-- [x] **State Variables**: All state variables (`extensionSettings`, `lastGeneratedData`, etc.) are correctly defined for the Story Tracker.
-- [x] **Helper Functions**: The `createSection`, `createSubsection`, and `createField` functions are correctly implemented.
+### 2. Completed Missing Features
+- **`src/systems/rendering/tracker.js`**:
+  - Added the missing `updateField` function, which is required by the "Edit Field" modal.
+- **`src/systems/ui/modals.js`**:
+  - Corrected the `showEditFieldModal` function to properly pass the `newValue` to the `updateField` function.
 
-### `persistence.js`
-- [x] **`loadSettings()` and `saveSettings()`**: Correctly use `localStorage` to persist settings.
-- [x] **`loadChatData()` and `saveChatData()`**: Correctly handle chat-specific data.
+### 3. UI/UX Improvements
+- **`style.css`**:
+  - Added a `.story-tracker-loader` class to style the new loading indicator.
+- **`src/systems/rendering/tracker.js`**:
+  - Improved the "empty" message to be more informative.
 
-### `events.js`
-- [x] **`registerAllEvents()`**: The event registration logic is sound and includes error handling.
+## Conclusion
 
-**Conclusion**: The core of the extension is solid and correctly structured.
-
-## 2. `src/systems/` - The Logic
-
-### `generation/`
-- [ ] **`apiClient.js`**:
-    - [ ] The `updateTrackerData` function still has references to `renderUserStats`, `renderInfoBox`, etc. in its signature. This needs to be cleaned up.
-- [ ] **`promptBuilder.js`**:
-    - [ ] The file still contains a lot of RPG Companion-specific logic. This needs to be completely replaced with Story Tracker prompt generation.
-- [ ] **`parser.js`**:
-    - [ ] The `parseResponse` function is now correctly set up to parse a single JSON block, but the rest of the file still has RPG-specific parsing logic that needs to be removed.
-
-### `rendering/`
-- [x] **`tracker.js`**: The rendering logic is correct and matches the Story Tracker's data structure.
-
-### `ui/`
-- [x] **`layout.js`, `mobile.js`, `modals.js`, `theme.js`**: These files have been simplified and are correctly set up for the Story Tracker.
-
-### `integration/`
-- [ ] **`sillytavern.js`**: This file still contains a lot of RPG Companion-specific logic, such as `updateChatThoughts` and references to `userStats`. This needs to be cleaned up.
-
-**Conclusion**: The `generation` and `integration` systems still contain significant remnants of the RPG Companion and need to be refactored.
-
-## 3. Root Files - The Entry Points
-
-### `index.js`
-- [x] The main initialization logic is correct and clean.
-
-### `manifest.json`
-- [x] The manifest is correct.
-
-### `template.html` and `style.css`
-- [x] The HTML and CSS are correctly set up for the Story Tracker.
-
-## **Action Plan:**
-
-1.  **Refactor `apiClient.js`**: Clean up the function signature of `updateTrackerData`.
-2.  **Rewrite `promptBuilder.js`**: Replace all RPG-specific logic with Story Tracker prompt generation.
-3.  **Clean up `parser.js`**: Remove all unused RPG-specific parsing functions.
-4.  **Refactor `sillytavern.js`**: Remove all RPG-specific integration logic.
-5.  **Delete Unused Files**: Remove all remaining unused files from the `src/systems/features` and `src/utils` directories.
-
-I will now proceed with this action plan.
+With these fixes, the extension should now be fully functional. The data management features (import/export, format switching) should work as intended, and the UI should be responsive and provide clear feedback to the user.
