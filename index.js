@@ -34,6 +34,8 @@ jQuery(async () => {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
 
+        console.log('[Story Tracker] SillyTavern global keys', Object.keys(SillyTavern || {}));
+
         // Wait for the UI system to be ready - re-fetch context each iteration
         let st;
         let attempts = 0;
@@ -42,8 +44,11 @@ jQuery(async () => {
             if (attempts % 20 === 1) {
                 try {
                     const context = SillyTavern?.getContext?.();
+                    const contextKeys = context ? Object.keys(context) : [];
                     const uiKeys = context?.ui ? Object.keys(context.ui) : [];
-                    console.warn('[Story Tracker] Waiting for SillyTavern context', { attempts, hasContext: Boolean(context), hasUi: Boolean(context?.ui), uiKeys });
+                    const extensionsKeys = context?.extensions ? Object.keys(context.extensions) : [];
+                    console.warn('[Story Tracker] Waiting for SillyTavern context', { attempts, hasContext: Boolean(context), contextKeys, hasUi: Boolean(context?.ui), uiKeys, hasExtensions: Boolean(context?.extensions), extensionsKeys });
+                    console.dir(context);
                 } catch (error) {
                     console.error('[Story Tracker] Error probing SillyTavern context', error);
                 }
