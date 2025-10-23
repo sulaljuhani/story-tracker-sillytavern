@@ -14,7 +14,7 @@ import { extensionSettings, committedTrackerData } from '../../core/state.js';
  * @returns {string} General instruction text
  */
 export function generateGeneralInstructions() {
-    return `You are managing a dynamic story tracker for the roleplay. The tracker contains various fields that track different aspects of the story and characters. Your task is to return a valid JSON object that represents the updated tracker data.`;
+    return extensionSettings.systemPrompt || `You are managing a dynamic story tracker for the roleplay. The tracker contains various fields that track different aspects of the story and characters. Your task is to return a valid JSON object that represents the updated tracker data.`;
 }
 
 /**

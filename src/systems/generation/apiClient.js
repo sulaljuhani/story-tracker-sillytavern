@@ -114,6 +114,12 @@ export async function updateTrackerData(renderCallback) {
                 saveSettings();
                 saveChatData();
                 renderCallback();
+
+                const st = SillyTavern.getContext();
+                const lastMessage = st.chat[st.chat.length - 1];
+                if (lastMessage && !lastMessage.is_user) {
+                    lastMessage.mes = lastMessage.mes.replace(/```json[\s\S]*?```/, '').trim();
+                }
             }
         }
 

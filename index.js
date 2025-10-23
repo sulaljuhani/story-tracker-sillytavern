@@ -116,6 +116,12 @@ async function initUI() {
         });
     });
 
+    $('#edit-preset-prompt').on('click', function() {
+        import('./src/core/presetManager.js').then(module => {
+            module.showEditPromptModal();
+        });
+    });
+
     $('#story-tracker-manual-update').on('click', async function() {
         if (!extensionSettings.enabled) {
             return;

@@ -12,15 +12,15 @@ import {
 } from './serialization.js';
 
 const DATA_FOLDER = `${extensionAssetsBasePath}/data`;
-const DEFAULT_JSON_PATH = `${DATA_FOLDER}/default-tracker.json`;
+const DEFAULT_PRESET_PATH = `${DATA_FOLDER}/default-preset.json`;
 
 export async function loadDefaultTrackerTemplate() {
-    const response = await fetch(`/${DEFAULT_JSON_PATH}`, { cache: 'no-cache' });
+    const response = await fetch(`/${DEFAULT_PRESET_PATH}`, { cache: 'no-cache' });
     if (!response.ok) {
-        throw new Error(`Failed to load default tracker template.`);
+        throw new Error(`Failed to load default tracker preset.`);
     }
-    const text = await response.text();
-    return JSON.parse(text);
+    const preset = await response.json();
+    return preset;
 }
 
 export async function ensureTrackerDataInitialized() {
@@ -34,16 +34,19 @@ export async function ensureTrackerDataInitialized() {
     }
 
     try {
-        console.log('[Story Tracker] No tracker data found. Loading default template...');
-        const template = await loadDefaultTrackerTemplate(FORMAT_JSON);
-        updateTrackerData(template, { skipPersist: true });
-        extensionSettings.dataFormat = FORMAT_JSON;
+        console.log('[Story Tracker] No tracker data found. Loading default preset...');
+        const preset = await loadDefaultTrackerTemplate();
+        updateExtensionSettings({
+            systemPrompt: preset.systemPrompt,
+            trackerData: preset.trackerData,
+            currentPreset: 'Default',
+        });
         saveSettings();
         saveChatData();
-        console.log('[Story Tracker] Default template loaded and applied.');
+        console.log('[Story Tracker] Default preset loaded and applied.');
         return true;
     } catch (error) {
-        console.error('[Story Tracker] Failed to load default tracker template:', error);
+        console.error('[Story Tracker] Failed to load default tracker preset:', error);
         // Initialize with empty data to prevent further errors
         updateTrackerData({ sections: [] }, { skipPersist: true });
         saveSettings();

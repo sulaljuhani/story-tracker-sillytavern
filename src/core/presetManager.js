@@ -25,7 +25,10 @@ function savePresets(presets) {
 export function saveCurrentPreset(name) {
     if (!name) return;
     const presets = getPresets();
-    presets[name] = extensionSettings.trackerData;
+    presets[name] = {
+        systemPrompt: extensionSettings.systemPrompt || '',
+        trackerData: extensionSettings.trackerData,
+    };
     savePresets(presets);
     populatePresetDropdown();
 }
@@ -33,7 +36,11 @@ export function saveCurrentPreset(name) {
 export function loadPreset(name) {
     const presets = getPresets();
     if (presets[name]) {
-        updateExtensionSettings({ trackerData: presets[name] });
+        updateExtensionSettings({
+            systemPrompt: presets[name].systemPrompt,
+            trackerData: presets[name].trackerData,
+            currentPreset: name,
+        });
         saveSettings();
         renderTracker();
     }
@@ -71,16 +78,13 @@ export function setupPresetManager() {
         }
     });
 
-    // Add save/delete buttons to the settings modal
     const modalBody = $('#story-tracker-settings-modal .story-tracker-modal-body');
-    // This is a bit of a hack, but it's the easiest way to add the buttons
-    // without re-writing the whole modal logic.
     if (modalBody.find('#preset-actions').length === 0) {
         modalBody.find('.story-tracker-data-buttons').after(`
-            <div id="preset-actions" style="margin-top: 1rem;">
-                <input type="text" id="new-preset-name" placeholder="New preset name..." />
-                <button id="save-preset" class="story-tracker-btn">Save Current as Preset</button>
-                <button id="delete-preset" class="story-tracker-btn story-tracker-btn-danger">Delete Selected Preset</button>
+            <div id="preset-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center;">
+                <input type="text" id="new-preset-name" placeholder="New preset name..." style="flex-grow: 1;"/>
+                <button id="save-preset" class="story-tracker-btn">Save</button>
+                <button id="delete-preset" class="story-tracker-btn story-tracker-btn-danger">Delete</button>
             </div>
         `);
 
@@ -89,6 +93,8 @@ export function setupPresetManager() {
             if (newName) {
                 saveCurrentPreset(newName);
                 $('#new-preset-name').val('');
+                populatePresetDropdown();
+                $('#story-tracker-preset-select').val(newName);
             }
         });
 
@@ -96,7 +102,37 @@ export function setupPresetManager() {
             const selectedPreset = $('#story-tracker-preset-select').val();
             if (selectedPreset && confirm(`Are you sure you want to delete the "${selectedPreset}" preset?`)) {
                 deletePreset(selectedPreset);
+                $('#story-tracker-preset-select').val('');
             }
         });
     }
+}
+
+export function showEditPromptModal() {
+    const modalBody = $('#story-tracker-field-modal .story-tracker-modal-body');
+    modalBody.html(`
+        <div style="padding: 0.75rem;">
+            <h4>Edit System Prompt</h4>
+            <div style="margin: 0.75rem 0;">
+                <textarea id="system-prompt-editor" rows="10" style="width: 100%;">${extensionSettings.systemPrompt || ''}</textarea>
+            </div>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                <button id="cancel-edit-prompt" class="story-tracker-btn">Cancel</button>
+                <button id="save-edit-prompt" class="story-tracker-btn story-tracker-btn-primary">Save</button>
+            </div>
+        </div>
+    `);
+
+    $('#cancel-edit-prompt').on('click', () => {
+        import('./modals.js').then(module => module.closeFieldPopup());
+    });
+
+    $('#save-edit-prompt').on('click', () => {
+        const newPrompt = $('#system-prompt-editor').val();
+        updateExtensionSettings({ systemPrompt: newPrompt });
+        saveSettings();
+        import('./modals.js').then(module => module.closeFieldPopup());
+    });
+
+    import('./modals.js').then(module => module.openFieldPopup());
 }

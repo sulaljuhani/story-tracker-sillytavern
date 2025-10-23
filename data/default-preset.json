@@ -1,0 +1,42 @@
+{
+  "systemPrompt": "You should fill this story tracker based in the context of the story.",
+  "trackerData": {
+    "sections": [
+      {
+        "id": "section_world",
+        "name": "world",
+        "fields": [
+          { "id": "field_location", "name": "Location", "prompt": "Current location", "value": "" },
+          { "id": "field_weather", "name": "Weather", "prompt": "current weather", "value": "" }
+        ]
+      },
+      {
+        "id": "section_characters",
+        "name": "characters",
+        "fields": [
+          { "id": "field_positions", "name": "Positions", "prompt": "All the characters' and {{user}}'s current positions relative to each other.", "value": "" }
+        ],
+        "subsections": [
+          {
+            "id": "subsection_user",
+            "name": "{{user}}",
+            "fields": [
+              { "id": "field_user_intent", "name": "character intent", "prompt": "general intent of {{user}}", "value": "" },
+              { "id": "field_user_emotion", "name": "emotional state", "prompt": "the current emotion of {{user}} and how he/she feel toward other characters and to what been happening", "value": "" },
+              { "id": "field_user_outfits", "name": "Outfits", "prompt": "the current clothing and underwear of {{user}}. If it's not described, guess.", "value": "" }
+            ]
+          },
+          {
+            "id": "subsection_char",
+            "name": "{{char}}",
+            "fields": [
+              { "id": "field_char_intent", "name": "character intent", "prompt": "general intent of {{char}}", "value": "" },
+              { "id": "field_char_emotion", "name": "emotional state", "prompt": "the current emotion of {{char}} and how he/she feel toward other characters and to what been happening", "value": "" },
+              { "id": "field_char_outfits", "name": "Outfits", "prompt": "the current clothing and underwear of {{char}}. If it's not described, guess.", "value": "" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
