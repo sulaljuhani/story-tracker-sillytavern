@@ -187,7 +187,7 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 
 .story-tracker-header h3 {
     margin: 0;
-    font-size: 1.7vw;
+    font-size: 1.3vw;
     font-weight: bold;
     display: flex;
     align-items: center;
@@ -195,6 +195,12 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     color: var(--st-highlight);
     text-shadow: 0 0 8px var(--st-highlight);
     letter-spacing: 0.031em;
+}
+
+@media (max-width: 1024px) {
+    .story-tracker-header h3 {
+        font-size: 1.1rem;
+    }
 }
 
 .story-tracker-btn {
@@ -218,11 +224,11 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     background: linear-gradient(135deg, var(--st-accent) 0%, var(--st-bg) 100%);
     border: 2px solid var(--st-border);
     border-radius: 0.625em;
-    padding: 0.5em;
+    padding: 0.75rem;
     box-shadow: 0 4px 18px var(--st-shadow), inset 0 0 12px rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
-    gap: 0.375em;
+    gap: 0.5rem;
     flex: 1;
     min-height: 0;
     overflow: hidden;
@@ -277,11 +283,11 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 
 /* Section Header */
 .story-tracker-section-header, .story-tracker-subsection-header {
-    padding: 0.75em;
+    padding: 0.5rem;
     background: var(--st-accent);
     border: 2px solid var(--st-border);
     border-radius: 0.625em;
-    margin-bottom: 0.938em;
+    margin-bottom: 0.5rem;
     display: flex;
     align-items: center;
     gap: 0.625em;
@@ -296,8 +302,15 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 
 .story-tracker-section-title, .story-tracker-subsection-title {
     font-weight: bold;
-    font-size: 1.2vw;
+    font-size: 1vw;
     color: var(--st-text);
+}
+
+@media (max-width: 1024px) {
+    .story-tracker-section-title,
+    .story-tracker-subsection-title {
+        font-size: 0.95rem;
+    }
 }
 
 .story-tracker-btn-primary {
@@ -422,7 +435,7 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 
 /* Scrollable Body */
 .story-tracker-modal-body {
-    padding: var(--modal-padding);
+    padding: 0.75rem;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -480,8 +493,8 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 
 .story-tracker-settings-tabs {
     display: inline-flex;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    gap: 0.3rem;
+    margin-bottom: 0.75rem;
 }
 
 .story-tracker-settings-tab-btn {
@@ -512,7 +525,7 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 .story-tracker-settings-group {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.3rem;
 }
 
 .story-tracker-settings-group label {
@@ -540,7 +553,7 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 
 .story-tracker-data-controls {
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .story-tracker-data-controls label {
@@ -566,9 +579,49 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     padding: 0.75rem;
     border-radius: 0.6rem;
     border: 1px solid var(--st-border);
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.6) !important;
     color: var(--st-text);
     line-height: 1.4;
+}
+
+.story-tracker-field {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--st-border);
+    border-radius: 0.5rem;
+}
+
+.story-tracker-field-prompt {
+    font-size: 0.8rem;
+    color: var(--st-text);
+    opacity: 0.7;
+    margin-bottom: 0.25rem;
+}
+
+.story-tracker-field-value {
+    background: rgba(0, 0, 0, 0.6) !important;
+    color: #eaeaea !important;
+    border: 1px solid var(--st-border) !important;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.story-tracker-modal input[type="text"],
+.story-tracker-modal input[type="number"],
+.story-tracker-modal select,
+.story-tracker-modal textarea {
+    background: rgba(0, 0, 0, 0.6) !important;
+    color: #eaeaea !important;
+    border: 1px solid var(--st-border) !important;
+}
+
+.story-tracker-field-value:focus,
+.story-tracker-modal input:focus,
+.story-tracker-modal select:focus,
+.story-tracker-modal textarea:focus {
+    background: rgba(0, 0, 0, 0.8) !important;
+    border-color: var(--st-highlight) !important;
+    outline: none;
 }
 
 .story-tracker-error {

@@ -119,22 +119,23 @@ export function renderField(field) {
         <div class="story-tracker-field ${enabledClass}" data-field-id="${field.id}">
             <div class="story-tracker-field-header">
                 <div class="story-tracker-field-toggle">
-                    <input type="checkbox" ${field.enabled ? 'checked' : ''} data-field-id="${field.id}" title="Enable/Disable Field">
+                    <input type="checkbox" ${field.enabled ? 'checked' : ''} data-field-id="${field.id}" title="Enable/Disable Story Element">
                 </div>
                 <div class="story-tracker-field-icon">
                     <i class="${fieldTypeIcon}"></i>
                 </div>
-                <div class="story-tracker-field-name" contenteditable="true" data-field-id="${field.id}">${field.name}</div>
+                <div class="story-tracker-field-name">${field.name}</div>
                 <div class="story-tracker-field-actions">
-                    <button class="story-tracker-btn story-tracker-btn-small" data-action="edit-field" data-field-id="${field.id}" title="Edit Field">
+                    <button class="story-tracker-btn story-tracker-btn-small" data-action="edit-field" data-field-id="${field.id}" title="Edit Story Element">
                         <i class="fa-solid fa-edit"></i>
                     </button>
-                    <button class="story-tracker-btn story-tracker-btn-small story-tracker-btn-danger" data-action="delete-field" data-field-id="${field.id}" title="Delete Field">
+                    <button class="story-tracker-btn story-tracker-btn-small story-tracker-btn-danger" data-action="delete-field" data-field-id="${field.id}" title="Delete Story Element">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
             </div>
-            <div class="story-tracker-field-value" contenteditable="true" data-field-id="${field.id}" title="Click to edit value">${field.value || 'Not set'}</div>
+            <div class="story-tracker-field-prompt"><strong>Prompt:</strong> ${field.prompt || 'No prompt set'}</div>
+            <div class="story-tracker-field-value"><strong>Current:</strong> ${field.value || 'Not yet generated'}</div>
         </div>
     `;
 }
@@ -365,11 +366,12 @@ function updateFieldValue(fieldId, newValue) {
     }
 }
 
-export function updateField(fieldId, newName, newValue) {
+export function updateField(fieldId, newName, newValue, newPrompt) {
     const field = findFieldById(fieldId);
     if (field) {
         if (newName) field.name = newName;
         if (newValue !== undefined) field.value = newValue;
+        if (newPrompt !== undefined) field.prompt = newPrompt;
         saveSettings();
         saveChatData();
         renderTracker();
@@ -457,7 +459,7 @@ export function addSubsection(sectionId, name) {
     return subsection.id;
 }
 
-export function addField(subsectionId, name, type = 'text') {
+export function addField(subsectionId, name, type = 'text', prompt = '') {
     ensureTrackerData();
     const subsection = findSubsectionById(subsectionId);
     if (!subsection) {
@@ -469,9 +471,9 @@ export function addField(subsectionId, name, type = 'text') {
         subsection.fields = [];
     }
 
-    const fieldName = (typeof name === 'string' && name.trim()) ? name.trim() : 'New Field';
+    const fieldName = (typeof name === 'string' && name.trim()) ? name.trim() : 'New Story Element';
     const fieldType = type || 'text';
-    const field = createField(fieldName, '', fieldType);
+    const field = createField(fieldName, prompt, fieldType);
     subsection.fields.push(field);
     saveSettings();
     saveChatData();

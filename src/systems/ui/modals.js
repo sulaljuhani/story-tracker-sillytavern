@@ -472,23 +472,19 @@ export function showAddSubsectionModal(sectionId) {
 export function showAddFieldModal(subsectionId) {
     const modalBody = $('#story-tracker-field-modal .story-tracker-modal-body');
     modalBody.html(`
-        <div style="padding: 1rem;">
-            <h4>Add New Field</h4>
-            <div style="margin: 1rem 0;">
-                <label for="field-name" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Field Name:</label>
-                <input type="text" id="field-name" placeholder="Enter field name" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+        <div style="padding: 0.75rem;">
+            <h4>Add New Story Element</h4>
+            <div style="margin: 0.75rem 0;">
+                <label for="field-name" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Story Element Name:</label>
+                <input type="text" id="field-name" placeholder="e.g., Location, Time of Day" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
             </div>
-            <div style="margin: 1rem 0;">
-                <label for="field-type" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Field Type:</label>
-                <select id="field-type" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-                    <option value="text">Text</option>
-                    <option value="number">Number</option>
-                    <option value="boolean">Boolean</option>
-                </select>
+            <div style="margin: 0.75rem 0;">
+                <label for="field-prompt" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Prompt:</label>
+                <textarea id="field-prompt" rows="3" placeholder="e.g., The current location where {{user}} is" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;"></textarea>
             </div>
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                 <button id="cancel-add-field" class="story-tracker-btn">Cancel</button>
-                <button id="confirm-add-field" class="story-tracker-btn story-tracker-btn-primary">Add Field</button>
+                <button id="confirm-add-field" class="story-tracker-btn story-tracker-btn-primary">Add Story Element</button>
             </div>
         </div>
     `);
@@ -497,15 +493,15 @@ export function showAddFieldModal(subsectionId) {
 
     modalBody.find('#confirm-add-field').on('click', () => {
         const fieldName = modalBody.find('#field-name').val().trim();
-        const fieldType = modalBody.find('#field-type').val();
+        const fieldPrompt = modalBody.find('#field-prompt').val().trim();
         if (fieldName) {
             import('../rendering/tracker.js').then(module => {
                 if (typeof module.addField === 'function') {
-                    module.addField(subsectionId, fieldName, fieldType);
+                    module.addField(subsectionId, fieldName, 'text', fieldPrompt);
                 }
                 closeFieldPopup();
             }).catch(error => {
-                console.error('[Story Tracker] Failed to add field:', error);
+                console.error('[Story Tracker] Failed to add story element:', error);
             });
         }
     });
@@ -517,38 +513,42 @@ export function showAddFieldModal(subsectionId) {
  * Shows the edit field modal
  */
 export function showEditFieldModal(fieldId) {
-    // Import tracker module to get field data
     import('../rendering/tracker.js').then(module => {
         if (module.getFieldById) {
             const field = module.getFieldById(fieldId);
             if (field) {
                 const modalBody = $('#story-tracker-field-modal .story-tracker-modal-body');
                 modalBody.html(`
-                    <div style="padding: 1rem;">
-                        <h4>Edit Field: ${field.name}</h4>
-                        <div style="margin: 1rem 0;">
-                            <label for="edit-field-name" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Field Name:</label>
+                    <div style="padding: 0.75rem;">
+                        <h4>Edit Story Element: ${field.name}</h4>
+                        <div style="margin: 0.75rem 0;">
+                            <label for="edit-field-name" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Story Element Name:</label>
                             <input type="text" id="edit-field-name" value="${field.name}" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
                         </div>
-                        <div style="margin: 1rem 0;">
-                            <label for="edit-field-value" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Field Value:</label>
-                            <input type="text" id="edit-field-value" value="${field.value || ''}" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+                        <div style="margin: 0.75rem 0;">
+                            <label for="edit-field-prompt" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Prompt:</label>
+                            <textarea id="edit-field-prompt" rows="3" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">${field.prompt || ''}</textarea>
+                        </div>
+                        <div style="margin: 0.75rem 0;">
+                            <label for="edit-field-value" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Current Value:</label>
+                            <textarea id="edit-field-value" rows="3" readonly style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; background-color: #2e2e2e;">${field.value || 'Not yet generated'}</textarea>
+                            <small>This is auto-generated by the LLM based on your prompt.</small>
                         </div>
                         <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                            <button class="story-tracker-btn" onclick="closeFieldPopup()">Cancel</button>
-                            <button class="story-tracker-btn story-tracker-btn-primary" onclick="updateField('${fieldId}')">Update Field</button>
+                            <button id="cancel-edit-field" class="story-tracker-btn">Cancel</button>
+                            <button id="confirm-edit-field" class="story-tracker-btn story-tracker-btn-primary">Update Story Element</button>
                         </div>
                     </div>
                 `);
 
-                modalBody.find('.story-tracker-btn:not(.story-tracker-btn-primary)').on('click', () => closeFieldPopup());
-                modalBody.find('.story-tracker-btn-primary').on('click', () => {
+                modalBody.find('#cancel-edit-field').on('click', () => closeFieldPopup());
+                modalBody.find('#confirm-edit-field').on('click', () => {
                     const newName = modalBody.find('#edit-field-name').val().trim();
-                    const newValue = modalBody.find('#edit-field-value').val();
+                    const newPrompt = modalBody.find('#edit-field-prompt').val().trim();
                     if (newName) {
                         import('../rendering/tracker.js').then(module => {
                             if (module.updateField) {
-                                module.updateField(fieldId, newName, newValue);
+                                module.updateField(fieldId, newName, undefined, newPrompt);
                                 closeFieldPopup();
                             }
                         });

@@ -23,8 +23,29 @@ export function generateGeneralInstructions() {
  * @param {TrackerData} trackerData - Current tracker data
  * @returns {string} Complete prompt text
  */
+function convertTrackerForLLM(trackerData) {
+    if (!trackerData) return {};
+    const converted = JSON.parse(JSON.stringify(trackerData));
+
+    for (const section of converted.sections) {
+        for (const subsection of section.subsections) {
+            const fieldsObject = {};
+            for (const field of subsection.fields) {
+                fieldsObject[field.name] = {
+                    prompt: field.prompt || '',
+                    value: field.value || ''
+                };
+            }
+            subsection.fields = fieldsObject;
+        }
+    }
+
+    return converted;
+}
+
 export function generateTrackerPrompt(includeHistory = true, trackerData = null) {
     const data = trackerData || committedTrackerData;
+    const trackerForLLM = convertTrackerForLLM(data);
 
     let prompt = generateGeneralInstructions();
     prompt += '\n\n';
@@ -44,10 +65,14 @@ export function generateTrackerPrompt(includeHistory = true, trackerData = null)
 
     prompt += 'Current tracker state:\n';
     prompt += '```json\n';
-    prompt += JSON.stringify(data, null, 2);
+    prompt += JSON.stringify(trackerForLLM, null, 2);
     prompt += '\n```\n\n';
 
-    prompt += 'Please update the tracker based on the recent events and return the complete, updated tracker data as a single JSON object inside a ```json code block.';
+    prompt += 'Instructions:\n';
+    prompt += '- Each field has a "prompt" (what to track) and a "value" (current state).\n';
+    prompt += '- Update the "value" of each field based on the recent events, while respecting the "prompt".\n';
+    prompt += '- Return the complete, updated tracker data as a single JSON object inside a ```json code block.\n';
+    prompt += '- Ensure the returned JSON has the same structure as the one provided.';
 
     return prompt;
 }

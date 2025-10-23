@@ -145,11 +145,11 @@ export function createSubsection(name = 'New Subsection') {
  * @param {string} type - Field type
  * @returns {import('../types/tracker.js').TrackerField} New field object
  */
-export function createField(name = 'New Field', prompt = '', type = 'text') {
+export function createField(name = 'New Field', prompt = '', type = 'text', value = '') {
     return {
         id: generateId('field'),
         name: name,
-        value: '',
+        value: value,
         prompt: prompt,
         type: type,
         enabled: true

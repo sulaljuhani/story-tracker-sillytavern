@@ -13,23 +13,56 @@ import { saveSettings } from '../../core/persistence.js';
  * @param {string} responseText - The raw AI response text
  * @returns {{trackerData: object|null, html: string|null}} Parsed data
  */
+function restoreTrackerFromLLM(parsedData) {
+    if (!parsedData || !Array.isArray(parsedData.sections)) {
+        return null;
+    }
+
+    const originalData = JSON.parse(JSON.stringify(extensionSettings.trackerData));
+
+    const restoredSections = [];
+
+    for (const originalSection of originalData.sections) {
+        const parsedSection = parsedData.sections.find(s => s.name === originalSection.name);
+        if (!parsedSection) continue;
+
+        const restoredSubsections = [];
+        for (const originalSubsection of originalSection.subsections) {
+            const parsedSubsection = parsedSection.subsections.find(ss => ss.name === originalSubsection.name);
+            if (!parsedSubsection) continue;
+
+            const restoredFields = [];
+            for (const originalField of originalSubsection.fields) {
+                const parsedFieldData = parsedSubsection.fields[originalField.name];
+                if (parsedFieldData) {
+                    originalField.value = parsedFieldData.value || originalField.value;
+                }
+                restoredFields.push(originalField);
+            }
+            originalSubsection.fields = restoredFields;
+            restoredSubsections.push(originalSubsection);
+        }
+        originalSection.subsections = restoredSubsections;
+        restoredSections.push(originalSection);
+    }
+
+    return { sections: restoredSections };
+}
+
 export function parseResponse(responseText) {
     const result = {
         trackerData: null,
         html: null
     };
 
-    // First, try to extract any HTML content.
     const htmlRegex = /(<div[^>]*>[\s\S]*?<\/div>|<style[^>]*>[\s\S]*?<\/style>|<script[^>]*>[\s\S]*?<\/script>)/gi;
     const htmlMatches = responseText.match(htmlRegex);
     if (htmlMatches) {
         result.html = htmlMatches.join('\n');
-        // Remove the HTML from the response so it doesn't interfere with tracker parsing
         responseText = responseText.replace(htmlRegex, '');
     }
 
-    // Now, parse the tracker data from code blocks
-    const codeBlockRegex = /```([\s\S]*?)```/g;
+    const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
     let match;
     const matches = [];
     while ((match = codeBlockRegex.exec(responseText)) !== null) {
@@ -37,9 +70,9 @@ export function parseResponse(responseText) {
     }
 
     if (matches.length > 0) {
-        // For story tracker, we expect a single JSON block
         try {
-            result.trackerData = JSON.parse(matches[0]);
+            const parsedData = JSON.parse(matches[0]);
+            result.trackerData = restoreTrackerFromLLM(parsedData);
         } catch (error) {
             console.error('[Story Tracker] Error parsing tracker data from code block:', error);
         }
