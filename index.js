@@ -12,10 +12,10 @@ jQuery(async () => {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    const st = SillyTavern.getContext();
-
-    // Wait for the UI system to be ready with registerExtension
+    // Wait for the UI system to be ready - RE-FETCH context each iteration
+    let st;
     while (!st?.ui?.registerExtension) {
+        st = SillyTavern.getContext();  // Re-fetch on each iteration
         await new Promise(resolve => setTimeout(resolve, 100));
     }
 
