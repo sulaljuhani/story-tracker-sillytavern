@@ -14,27 +14,9 @@ jQuery(async () => {
 
     // Wait for the UI system to be ready - RE-FETCH context each iteration
     let st;
-    let attempts = 0;
-    const maxAttempts = 100;
-
-    while (attempts < maxAttempts) {
-        st = SillyTavern.getContext();
-        console.log(`[Story Tracker] Attempt ${attempts}: st =`, st);
-        console.log(`[Story Tracker] st.ui =`, st?.ui);
-        console.log(`[Story Tracker] st.ui.registerExtension =`, st?.ui?.registerExtension);
-        
-        if (st?.ui?.registerExtension) {
-            console.log('[Story Tracker] Found registerExtension, proceeding...');
-            break;
-        }
-        
-        attempts++;
+    while (!st?.ui?.registerExtension) {
+        st = SillyTavern.getContext();  // Re-fetch on each iteration
         await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    if (!st?.ui?.registerExtension) {
-        console.error('[Story Tracker] Failed to find registerExtension after', attempts, 'attempts');
-        return; // Exit early to prevent error
     }
 
     const base = new URL('.', import.meta.url);
