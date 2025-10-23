@@ -24,6 +24,26 @@ async function waitForElementConnection(element, label, timeout = 3000) {
     }
 }
 
+function resolveRegisterExtension(st) {
+    const candidates = [
+        { source: 'context.ui.registerExtension', fn: st?.ui?.registerExtension, thisArg: st?.ui },
+        { source: 'SillyTavern.ui.registerExtension', fn: globalThis.SillyTavern?.ui?.registerExtension, thisArg: globalThis.SillyTavern?.ui },
+        { source: 'context.extensions.registerExtension', fn: st?.extensions?.registerExtension, thisArg: st?.extensions },
+        { source: 'SillyTavern.extensions.registerExtension', fn: globalThis.SillyTavern?.extensions?.registerExtension, thisArg: globalThis.SillyTavern?.extensions },
+        { source: 'context.extensions.register', fn: st?.extensions?.register, thisArg: st?.extensions },
+        { source: 'SillyTavern.extensions.register', fn: globalThis.SillyTavern?.extensions?.register, thisArg: globalThis.SillyTavern?.extensions },
+        { source: 'SillyTavern.registerExtension', fn: globalThis.SillyTavern?.registerExtension, thisArg: globalThis.SillyTavern },
+    ];
+
+    for (const candidate of candidates) {
+        if (typeof candidate.fn === 'function') {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
 console.log('[Story Tracker] Script loaded');
 
 jQuery(async () => {
@@ -38,29 +58,37 @@ jQuery(async () => {
 
         // Wait for the UI system to be ready - re-fetch context each iteration
         let st;
+        let registration = null;
         let attempts = 0;
-        while (!st?.ui?.registerExtension) {
+        while (!registration) {
             attempts += 1;
+            st = SillyTavern?.getContext?.();
+
             if (attempts % 20 === 1) {
                 try {
-                    const context = SillyTavern?.getContext?.();
-                    const contextKeys = context ? Object.keys(context) : [];
-                    const uiKeys = context?.ui ? Object.keys(context.ui) : [];
-                    const extensionsKeys = context?.extensions ? Object.keys(context.extensions) : [];
-                    console.warn('[Story Tracker] Waiting for SillyTavern context', { attempts, hasContext: Boolean(context), contextKeys, hasUi: Boolean(context?.ui), uiKeys, hasExtensions: Boolean(context?.extensions), extensionsKeys });
-                    console.dir(context);
+                    const contextKeys = st ? Object.keys(st) : [];
+                    const uiKeys = st?.ui ? Object.keys(st.ui) : [];
+                    const extensionsKeys = st?.extensions ? Object.keys(st.extensions) : [];
+                    console.warn('[Story Tracker] Waiting for SillyTavern context', { attempts, hasContext: Boolean(st), contextKeys, hasUi: Boolean(st?.ui), uiKeys, hasExtensions: Boolean(st?.extensions), extensionsKeys });
+                    console.dir(st);
                 } catch (error) {
                     console.error('[Story Tracker] Error probing SillyTavern context', error);
                 }
             }
-            st = SillyTavern.getContext();
+
+            registration = resolveRegisterExtension(st);
+            if (registration) {
+                break;
+            }
+
             if (attempts > 300) {
                 throw new Error('[Story Tracker] registerExtension not available after 300 attempts');
             }
+
             await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        console.log('[Story Tracker] Context ready, registering extension');
+        console.log('[Story Tracker] Context ready, registering extension via', registration.source);
         const base = new URL('.', import.meta.url);
 
         // 1. Load settings
@@ -72,7 +100,10 @@ jQuery(async () => {
 
         // 3. Register the extension
         console.log('[Story Tracker] Registering extension');
-        st.ui.registerExtension({
+        const registerFn = registration.fn;
+        const registerThis = registration.thisArg ?? st?.ui ?? globalThis.SillyTavern?.ui ?? st ?? globalThis.SillyTavern;
+        console.log('[Story Tracker] Using register function', { source: registration.source, arity: registerFn.length });
+        registerFn.call(registerThis, {
             id: extensionName,
             name: extensionDisplayName,
             init: async ({ root }) => {
