@@ -7,10 +7,15 @@ import { setupPresetManager, loadPreset, saveCurrentPreset, populatePresetDropdo
 import { showSettingsModal } from './src/systems/ui/modals.js';
 
 jQuery(async () => {
+    // Wait for SillyTavern to be available
+    while (typeof SillyTavern === 'undefined') {
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
     const st = SillyTavern.getContext();
 
-    // Wait for the UI to be ready
-    while (!st.ui) {
+    // Wait for the UI system to be ready with registerExtension
+    while (!st?.ui?.registerExtension) {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
 
