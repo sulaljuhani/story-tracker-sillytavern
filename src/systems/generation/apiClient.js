@@ -12,7 +12,7 @@ import {
     setIsGenerating,
     setLastActionWasSwipe
 } from '../../core/state.js';
-import { saveChatData } from '../../core/persistence.js';
+import { saveSettings, saveChatData } from '../../core/persistence.js';
 import { generateSeparateUpdatePrompt } from './promptBuilder.js';
 import { parseResponse } from './parser.js';
 
@@ -48,7 +48,8 @@ async function getCurrentPresetName() {
         console.error('[RPG Companion] Error getting current preset:', error);
         return null;
     }
-}/**
+}
+/**
  * Switches to a specific preset by name using the /preset slash command
  * @param {string} presetName - Name of the preset to switch to
  * @returns {Promise<boolean>} True if switching succeeded, false otherwise

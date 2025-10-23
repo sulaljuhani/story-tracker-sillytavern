@@ -1,10 +1,12 @@
 import { extensionName, extensionDisplayName, defaultSettings } from './src/core/config.js';
-import { extensionSettings, updateExtensionSettings } from './src/core/state.js';
-import { saveSettings } from './src/core/persistence.js';
+import { extensionSettings, updateExtensionSettings, setPanelContainer, setSectionsContainer } from './src/core/state.js';
 import { loadDefaultTrackerTemplate } from './src/core/dataManager.js';
 import { renderTracker } from './src/systems/rendering/tracker.js';
-import { setupPresetManager, loadPreset, saveCurrentPreset, populatePresetDropdown } from './src/core/presetManager.js';
-import { showSettingsModal } from './src/systems/ui/modals.js';
+import { setupPresetManager, saveCurrentPreset } from './src/core/presetManager.js';
+import { setupSettingsPopup, setupFieldPopup, showSettingsModal } from './src/systems/ui/modals.js';
+import { updateTrackerData } from './src/systems/generation/apiClient.js';
+import { setupMobileToggle, setupMobileKeyboardHandling, setupContentEditableScrolling } from './src/systems/ui/mobile.js';
+import { setupCollapseToggle, applyPanelPosition, updatePanelVisibility, updateGenerationModeUI } from './src/systems/ui/layout.js';
 
 jQuery(async () => {
     // Wait for SillyTavern to be available
@@ -31,9 +33,27 @@ jQuery(async () => {
     // 3. Register the extension
     st.ui.registerExtension({
         id: extensionName,
-        name: 'Story Tracker',
+        name: extensionDisplayName,
         init: async ({ root }) => {
             root.innerHTML = html;
+            const $root = $(root);
+
+            // Cache commonly used elements for other modules
+            setPanelContainer($root.find('#story-tracker-panel'));
+            setSectionsContainer($root.find('#story-tracker-sections'));
+
+            // Wire up UI helpers
+            setupSettingsPopup();
+            setupFieldPopup();
+            setupPresetManager();
+            setupCollapseToggle();
+            setupMobileToggle();
+            setupMobileKeyboardHandling();
+            setupContentEditableScrolling();
+            applyPanelPosition();
+            updatePanelVisibility();
+            updateGenerationModeUI();
+
 
             // 4. Load data
             if (!extensionSettings.trackerData || Object.keys(extensionSettings.trackerData).length === 0) {
@@ -52,18 +72,14 @@ jQuery(async () => {
 
             // 5. Initial render
             renderTracker();
-            populatePresetDropdown();
 
             // 6. Attach event listeners
-            $(root).find('#story-tracker-settings').on('click', () => showSettingsModal());
-            $(root).find('#edit-preset-prompt').on('click', () => {
-                import(new URL('./src/core/presetManager.js', base)).then(module => module.showEditPromptModal());
+            $root.find('#story-tracker-settings').on('click', () => showSettingsModal());
+            $root.find('#story-tracker-manual-update').on('click', async () => {
+                await updateTrackerData(renderTracker);
             });
-            $(root).find('#story-tracker-preset-select').on('change', function() {
-                const selectedPreset = $(this).val();
-                if (selectedPreset) {
-                    loadPreset(selectedPreset);
-                }
+            $root.find('#edit-preset-prompt').on('click', () => {
+                import(new URL('./src/core/presetManager.js', base)).then(module => module.showEditPromptModal());
             });
         },
     });
