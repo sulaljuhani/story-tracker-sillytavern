@@ -393,7 +393,6 @@ function notify(message, type = 'success') {
  * Shows the add section modal
  */
 export function showAddSectionModal() {
-    // Populate modal content for adding a section
     const modalBody = $('#story-tracker-settings-modal .story-tracker-modal-body');
     modalBody.html(`
         <div style="padding: 1rem;">
@@ -403,16 +402,16 @@ export function showAddSectionModal() {
                 <input type="text" id="section-name" placeholder="Enter section name" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
             </div>
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                <button class="story-tracker-btn" onclick="closeSettingsPopup()">Cancel</button>
-                <button class="story-tracker-btn story-tracker-btn-primary" onclick="addNewSection()">Add Section</button>
+                <button id="cancel-add-section" class="story-tracker-btn">Cancel</button>
+                <button id="confirm-add-section" class="story-tracker-btn story-tracker-btn-primary">Add Section</button>
             </div>
         </div>
     `);
 
-    // Make functions available globally for onclick handlers
-    window.closeSettingsPopup = closeSettingsPopup;
-    window.addNewSection = () => {
-        const sectionName = $('#section-name').val().trim();
+    modalBody.find('#cancel-add-section').on('click', () => closeSettingsPopup());
+
+    modalBody.find('#confirm-add-section').on('click', () => {
+        const sectionName = modalBody.find('#section-name').val().trim();
         if (sectionName) {
             import('../rendering/tracker.js').then(module => {
                 if (typeof module.addSection === 'function') {
@@ -423,7 +422,7 @@ export function showAddSectionModal() {
                 console.error('[Story Tracker] Failed to add section:', error);
             });
         }
-    };
+    });
 
     openSettingsPopup();
 }
@@ -442,15 +441,16 @@ export function showAddSubsectionModal(sectionId) {
                 <input type="text" id="subsection-name" placeholder="Enter subsection name" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
             </div>
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                <button class="story-tracker-btn" onclick="closeSettingsPopup()">Cancel</button>
-                <button class="story-tracker-btn story-tracker-btn-primary" onclick="addNewSubsection()">Add Subsection</button>
+                <button id="cancel-add-subsection" class="story-tracker-btn">Cancel</button>
+                <button id="confirm-add-subsection" class="story-tracker-btn story-tracker-btn-primary">Add Subsection</button>
             </div>
         </div>
     `);
 
-    window.closeSettingsPopup = closeSettingsPopup;
-    window.addNewSubsection = () => {
-        const subsectionName = $('#subsection-name').val().trim();
+    modalBody.find('#cancel-add-subsection').on('click', () => closeSettingsPopup());
+
+    modalBody.find('#confirm-add-subsection').on('click', () => {
+        const subsectionName = modalBody.find('#subsection-name').val().trim();
         if (subsectionName) {
             import('../rendering/tracker.js').then(module => {
                 if (typeof module.addSubsection === 'function') {
@@ -461,7 +461,7 @@ export function showAddSubsectionModal(sectionId) {
                 console.error('[Story Tracker] Failed to add subsection:', error);
             });
         }
-    };
+    });
 
     openSettingsPopup();
 }
@@ -470,7 +470,6 @@ export function showAddSubsectionModal(sectionId) {
  * Shows the add field modal
  */
 export function showAddFieldModal(subsectionId) {
-    // Populate modal content for adding a field
     const modalBody = $('#story-tracker-field-modal .story-tracker-modal-body');
     modalBody.html(`
         <div style="padding: 1rem;">
@@ -488,17 +487,17 @@ export function showAddFieldModal(subsectionId) {
                 </select>
             </div>
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                <button class="story-tracker-btn" onclick="closeFieldPopup()">Cancel</button>
-                <button class="story-tracker-btn story-tracker-btn-primary" onclick="addNewField()">Add Field</button>
+                <button id="cancel-add-field" class="story-tracker-btn">Cancel</button>
+                <button id="confirm-add-field" class="story-tracker-btn story-tracker-btn-primary">Add Field</button>
             </div>
         </div>
     `);
 
-    // Make functions available globally for onclick handlers
-    window.closeFieldPopup = closeFieldPopup;
-    window.addNewField = () => {
-        const fieldName = $('#field-name').val().trim();
-        const fieldType = $('#field-type').val();
+    modalBody.find('#cancel-add-field').on('click', () => closeFieldPopup());
+
+    modalBody.find('#confirm-add-field').on('click', () => {
+        const fieldName = modalBody.find('#field-name').val().trim();
+        const fieldType = modalBody.find('#field-type').val();
         if (fieldName) {
             import('../rendering/tracker.js').then(module => {
                 if (typeof module.addField === 'function') {
@@ -509,7 +508,7 @@ export function showAddFieldModal(subsectionId) {
                 console.error('[Story Tracker] Failed to add field:', error);
             });
         }
-    };
+    });
 
     openFieldPopup();
 }
@@ -542,11 +541,10 @@ export function showEditFieldModal(fieldId) {
                     </div>
                 `);
 
-                // Make functions available globally for onclick handlers
-                window.closeFieldPopup = closeFieldPopup;
-                window.updateField = (fieldId) => {
-                    const newName = $('#edit-field-name').val().trim();
-                    const newValue = $('#edit-field-value').val(); // Don't trim value, as it might be intentional whitespace
+                modalBody.find('.story-tracker-btn:not(.story-tracker-btn-primary)').on('click', () => closeFieldPopup());
+                modalBody.find('.story-tracker-btn-primary').on('click', () => {
+                    const newName = modalBody.find('#edit-field-name').val().trim();
+                    const newValue = modalBody.find('#edit-field-value').val();
                     if (newName) {
                         import('../rendering/tracker.js').then(module => {
                             if (module.updateField) {
@@ -555,7 +553,7 @@ export function showEditFieldModal(fieldId) {
                             }
                         });
                     }
-                };
+                });
 
                 openFieldPopup();
             }
