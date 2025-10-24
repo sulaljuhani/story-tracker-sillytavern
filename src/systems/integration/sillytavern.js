@@ -34,9 +34,10 @@ function getLastAssistantMessage(chat) {
 
     for (let i = chat.length - 1; i >= 0; i -= 1) {
         const message = chat[i];
-        if (message && !message.is_user) {
-            return message;
+        if (!message || message.is_user || message.is_system) {
+            continue;
         }
+        return message;
     }
 
     return null;
