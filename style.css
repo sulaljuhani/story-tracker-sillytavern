@@ -310,14 +310,14 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 
 /* Unified Content Box - Contains all sections, scales to fit viewport */
 .story-tracker-content {
-    background: linear-gradient(135deg, var(--st-accent) 0%, var(--st-bg) 100%);
-    border: 2px solid var(--st-border);
-    border-radius: 0.625em;
-    padding: 0.75rem;
-    box-shadow: 0 4px 18px var(--st-shadow), inset 0 0 12px rgba(0, 0, 0, 0.3);
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: clamp(0.85rem, 2vw, 1.25rem);
+    box-shadow: none;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: clamp(0.6rem, 1.5vw, 1rem);
     flex: 1;
     min-height: 0;
     overflow: hidden;
@@ -371,28 +371,49 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 }
 
 /* Section Header */
-.story-tracker-section-header, .story-tracker-subsection-header {
-    padding: 0.5rem;
-    background: var(--st-accent);
-    border: 2px solid var(--st-border);
-    border-radius: 0.625em;
-    margin-bottom: 0.5rem;
+.story-tracker-section-header,
+.story-tracker-subsection-header {
+    padding: 0.25rem 0 0.75rem;
+    background: none;
+    border: none;
+    border-radius: 0;
+    margin-bottom: clamp(0.65rem, 1.5vw, 0.9rem);
     display: flex;
-    align-items: center;
-    gap: 0.625em;
-    transition: all 0.3s ease;
+    align-items: flex-end;
+    gap: clamp(0.5rem, 1.5vw, 0.85rem);
+    transition: color 0.3s ease;
+    position: relative;
 }
 
-.story-tracker-section-header:hover, .story-tracker-subsection-header:hover {
-    background: var(--st-highlight);
-    border-color: var(--st-highlight);
-    transform: translateX(0.312rem);
+.story-tracker-section-header::after,
+.story-tracker-subsection-header::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: 0;
+    height: 1px;
+    background: var(--st-border);
+    opacity: 0.4;
 }
 
-.story-tracker-section-title, .story-tracker-subsection-title {
-    font-weight: bold;
-    font-size: clamp(0.95rem, 0.6vw + 0.85rem, 1.1rem);
+.story-tracker-section-header:hover,
+.story-tracker-subsection-header:hover {
+    color: var(--st-highlight);
+}
+
+.story-tracker-section-title,
+.story-tracker-subsection-title {
+    font-weight: 600;
+    font-size: clamp(1rem, 0.9vw + 0.95rem, 1.3rem);
     color: var(--st-text);
+    flex: 1;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+}
+
+.story-tracker-subsection-title {
+    font-size: clamp(0.95rem, 0.8vw + 0.85rem, 1.15rem);
+    font-weight: 500;
 }
 
 .story-tracker-btn-primary {
@@ -668,11 +689,13 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 
 .story-tracker-field {
     display: flex;
-    align-items: center;
-    padding: 0.5rem;
-    margin-bottom: 0.5rem;
-    border: 1px solid var(--st-border);
-    border-radius: 0.5rem;
+    align-items: flex-start;
+    gap: clamp(0.4rem, 1vw, 0.75rem);
+    padding: 0.4rem 0;
+    margin-bottom: clamp(0.3rem, 1vw, 0.6rem);
+    flex-wrap: wrap;
+    border: none;
+    background: none;
 }
 
 .story-tracker-field-name {
@@ -682,11 +705,13 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 
 .story-tracker-field-value {
     flex-grow: 1;
-    background: rgba(0, 0, 0, 0.6) !important;
+    background: none !important;
     color: #eaeaea !important;
-    border: 1px solid var(--st-border) !important;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
+    border: none !important;
+    padding: 0.1rem 0;
+    border-radius: 0;
+    line-height: 1.5;
+    word-break: break-word;
 }
 
 .story-tracker-field-actions {
