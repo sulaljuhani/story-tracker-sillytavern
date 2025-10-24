@@ -151,17 +151,38 @@ async function waitForRegistrationFunction({ maxAttempts = 300, delayMs = 100 } 
 
 let eventsRegistered = false;
 
+function resolveEventTypes(context) {
+    const candidates = [
+        { value: context?.event_types, source: 'context.event_types' },
+        { value: context?.eventTypes, source: 'context.eventTypes' },
+        { value: context?.EVENT_TYPES, source: 'context.EVENT_TYPES' },
+        { value: globalThis.SillyTavern?.eventTypes, source: 'SillyTavern.eventTypes' },
+        { value: globalThis.SillyTavern?.event_types, source: 'SillyTavern.event_types' },
+    ];
+
+    for (const candidate of candidates) {
+        if (candidate.value && typeof candidate.value === 'object') {
+            return candidate;
+        }
+    }
+
+    return { value: undefined, source: undefined };
+}
+
 function registerEventHandlers() {
     if (eventsRegistered) {
         return;
     }
 
     const context = globalThis.SillyTavern?.getContext?.();
-    const eventTypes = context?.event_types;
+    const { value: eventTypes, source: eventTypesSource } = resolveEventTypes(context);
     const eventSource = context?.eventSource;
 
     if (!eventSource || !eventTypes) {
-        console.warn('[Story Tracker] Event API unavailable; skipping event registration');
+        console.warn('[Story Tracker] Event API unavailable; skipping event registration', {
+            hasEventSource: Boolean(eventSource),
+            eventTypesSource: eventTypesSource || null,
+        });
         return;
     }
 
