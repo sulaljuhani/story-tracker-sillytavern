@@ -148,11 +148,13 @@ export function renderSubsection(subsection) {
  */
 export function renderField(field) {
     const enabledClass = field.enabled ? 'enabled' : 'disabled';
+    const value = field.value ?? '...';
+    const displayValue = value === '' ? '...' : value;
 
     return `
         <div class="story-tracker-field ${enabledClass}" data-field-id="${field.id}" draggable="true">
             <div class="story-tracker-field-name">${field.name}:</div>
-            <div class="story-tracker-field-value">${field.value || '...'}</div>
+            <div class="story-tracker-field-value">${displayValue}</div>
             <div class="story-tracker-field-actions">
                 <button class="story-tracker-btn story-tracker-btn-small" data-action="edit-field" data-field-id="${field.id}" title="Edit Story Element">
                     <i class="fa-solid fa-edit"></i>
