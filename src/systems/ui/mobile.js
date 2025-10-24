@@ -275,15 +275,18 @@ export function setupMobileToggle() {
             if ($panel.hasClass('story-tracker-mobile-open')) {
                 // Close panel with animation
                 closeMobilePanelWithAnimation();
+                updateCollapseToggleIcon();
             } else {
                 // Open panel
                 $panel.addClass('story-tracker-mobile-open');
                 $('body').append($overlay);
                 $mobileToggle.addClass('active');
+                updateCollapseToggleIcon();
 
                 // Close when clicking overlay
                 $overlay.on('click', function() {
                     closeMobilePanelWithAnimation();
+                    updateCollapseToggleIcon();
                 });
             }
         }
@@ -307,15 +310,18 @@ export function setupMobileToggle() {
         if ($panel.hasClass('story-tracker-mobile-open')) {
             console.log('[Story Tracker Mobile] Click: Closing panel');
             closeMobilePanelWithAnimation();
+            updateCollapseToggleIcon();
         } else {
             console.log('[Story Tracker Mobile] Click: Opening panel');
             $panel.addClass('story-tracker-mobile-open');
             $('body').append($overlay);
             $mobileToggle.addClass('active');
+            updateCollapseToggleIcon();
 
             $overlay.on('click', function() {
                 console.log('[Story Tracker Mobile] Overlay clicked - closing panel');
                 closeMobilePanelWithAnimation();
+                updateCollapseToggleIcon();
             });
         }
     });
