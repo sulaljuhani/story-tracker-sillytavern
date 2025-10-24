@@ -381,12 +381,36 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     align-items: center;
     gap: 0.625em;
     transition: all 0.3s ease;
+    position: relative;
 }
 
-.story-tracker-section-header:hover, .story-tracker-subsection-header:hover {
+.story-tracker-section-header:hover,
+.story-tracker-section-header:focus-within,
+.story-tracker-section-header.is-active,
+.story-tracker-subsection-header:hover,
+.story-tracker-subsection-header:focus-within,
+.story-tracker-subsection-header.is-active {
     background: var(--st-highlight);
     border-color: var(--st-highlight);
     transform: translateX(0.312rem);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+
+.story-tracker-section-header:focus-visible,
+.story-tracker-subsection-header:focus-visible,
+.story-tracker-field:focus-visible {
+    outline: 2px solid var(--st-highlight);
+    outline-offset: 2px;
+}
+
+.story-tracker-section-header.is-active,
+.story-tracker-section-header:focus-within,
+.story-tracker-subsection-header.is-active,
+.story-tracker-subsection-header:focus-within,
+.story-tracker-field.is-active,
+.story-tracker-field:focus-within {
+    border-color: var(--st-highlight);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
 }
 
 .story-tracker-section-title, .story-tracker-subsection-title {
@@ -675,6 +699,22 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     border-radius: 0.5rem;
 }
 
+.story-tracker-section-actions,
+.story-tracker-subsection-actions {
+    display: flex;
+    gap: 0.25rem;
+    margin-left: auto;
+}
+
+.story-tracker-section-actions,
+.story-tracker-subsection-actions,
+.story-tracker-field-actions {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
 .story-tracker-field-name {
     font-weight: bold;
     margin-right: 0.5rem;
@@ -692,6 +732,20 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 .story-tracker-field-actions {
     display: flex;
     gap: 0.25rem;
+}
+
+.story-tracker-section-header:hover .story-tracker-section-actions,
+.story-tracker-section-header:focus-within .story-tracker-section-actions,
+.story-tracker-section-header.is-active .story-tracker-section-actions,
+.story-tracker-subsection-header:hover .story-tracker-subsection-actions,
+.story-tracker-subsection-header:focus-within .story-tracker-subsection-actions,
+.story-tracker-subsection-header.is-active .story-tracker-subsection-actions,
+.story-tracker-field:hover .story-tracker-field-actions,
+.story-tracker-field:focus-within .story-tracker-field-actions,
+.story-tracker-field.is-active .story-tracker-field-actions {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
 }
 
 .story-tracker-field-actions .story-tracker-btn-small {

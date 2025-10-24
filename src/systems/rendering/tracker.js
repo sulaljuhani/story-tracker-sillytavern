@@ -21,6 +21,9 @@ const dragState = {
 };
 
 let sectionDragContainer = null;
+const ACTIVE_ELEMENT_SELECTOR = '.story-tracker-section-header, .story-tracker-subsection-header, .story-tracker-field';
+let activeInteractiveElement = null;
+let activeStateDocumentHandlerRegistered = false;
 
 function resetDragState() {
     dragState.type = null;
@@ -35,6 +38,129 @@ function isInteractiveElement(target) {
         return false;
     }
     return Boolean(target.closest('button, a, input, textarea, select'));
+}
+
+function isTrackerToggleElement(target) {
+    if (!target) {
+        return false;
+    }
+    return Boolean(target.closest('.story-tracker-section-toggle, .story-tracker-subsection-toggle'));
+}
+
+function clearActiveInteractiveElement() {
+    if (activeInteractiveElement) {
+        activeInteractiveElement.classList.remove('is-active');
+        delete activeInteractiveElement.dataset.skipNextToggle;
+        activeInteractiveElement = null;
+    }
+}
+
+function setActiveInteractiveElement(element) {
+    if (!element || activeInteractiveElement === element) {
+        return;
+    }
+
+    clearActiveInteractiveElement();
+    activeInteractiveElement = element;
+    activeInteractiveElement.classList.add('is-active');
+}
+
+function handleDocumentPointerDown(event) {
+    if (!activeInteractiveElement) {
+        return;
+    }
+
+    const target = event.target;
+    if (!target) {
+        clearActiveInteractiveElement();
+        return;
+    }
+
+    if (activeInteractiveElement.contains(target)) {
+        return;
+    }
+
+    if (target.closest(ACTIVE_ELEMENT_SELECTOR)) {
+        return;
+    }
+
+    clearActiveInteractiveElement();
+}
+
+function registerActiveStateDocumentHandlers() {
+    if (activeStateDocumentHandlerRegistered) {
+        return;
+    }
+
+    document.addEventListener('pointerdown', handleDocumentPointerDown);
+    activeStateDocumentHandlerRegistered = true;
+}
+
+function handleActiveStatePointerDown(event) {
+    const element = event.currentTarget;
+    if (!element) {
+        return;
+    }
+
+    if (isInteractiveElement(event.target) || isTrackerToggleElement(event.target)) {
+        return;
+    }
+
+    const pointerType = event.pointerType || '';
+    if (pointerType === 'touch' || pointerType === 'pen' || pointerType === '') {
+        if (!element.classList.contains('is-active')) {
+            setActiveInteractiveElement(element);
+            if (element.classList.contains('story-tracker-subsection-header')) {
+                element.dataset.skipNextToggle = '1';
+            }
+        }
+    }
+}
+
+function handleActiveStateFocusIn(event) {
+    const element = event.currentTarget;
+    if (!element) {
+        return;
+    }
+    setActiveInteractiveElement(element);
+}
+
+function handleActiveStateFocusOut(event) {
+    const element = event.currentTarget;
+    if (!element) {
+        return;
+    }
+
+    const nextFocused = event.relatedTarget;
+    if (nextFocused && element.contains(nextFocused)) {
+        return;
+    }
+
+    if (activeInteractiveElement === element) {
+        clearActiveInteractiveElement();
+    }
+}
+
+function bindActiveStateHandlers(element) {
+    if (!element || element.dataset.activeStateBound) {
+        return;
+    }
+
+    element.dataset.activeStateBound = '1';
+    element.addEventListener('pointerdown', handleActiveStatePointerDown);
+    element.addEventListener('focusin', handleActiveStateFocusIn);
+    element.addEventListener('focusout', handleActiveStateFocusOut);
+}
+
+function initializeActiveStateInteractions() {
+    const container = document.getElementById('story-tracker-sections');
+    if (!container) {
+        return;
+    }
+
+    const interactiveElements = Array.from(container.querySelectorAll(ACTIVE_ELEMENT_SELECTOR));
+    interactiveElements.forEach(bindActiveStateHandlers);
+    registerActiveStateDocumentHandlers();
 }
 
 /**
@@ -54,9 +180,12 @@ export function renderTracker() {
     const trackerData = extensionSettings.trackerData;
 
     if (!trackerData || !trackerData.sections || trackerData.sections.length === 0) {
+        clearActiveInteractiveElement();
         $sectionsContainer.html('<div class="story-tracker-empty">No tracker data. Add a section or load a template to get started.</div>');
         return;
     }
+
+    clearActiveInteractiveElement();
 
     let html = '';
 
@@ -72,6 +201,7 @@ export function renderTracker() {
     attachSubsectionEventListeners();
     attachFieldEventListeners();
     initializeDragAndDrop();
+    initializeActiveStateInteractions();
 }
 
 /**
@@ -87,7 +217,7 @@ export function renderSection(section) {
 
     return `
         <div class="story-tracker-section" data-section-id="${section.id}">
-            <div class="story-tracker-section-header ${collapsedClass}" draggable="true" data-section-id="${section.id}">
+            <div class="story-tracker-section-header ${collapsedClass}" draggable="true" data-section-id="${section.id}" tabindex="0">
                 <div class="story-tracker-section-toggle">
                     <i class="fa-solid fa-chevron-down"></i>
                 </div>
@@ -123,7 +253,7 @@ export function renderSubsection(subsection) {
 
     return `
         <div class="story-tracker-subsection" data-subsection-id="${subsection.id}">
-            <div class="story-tracker-subsection-header ${collapsedClass}">
+            <div class="story-tracker-subsection-header ${collapsedClass}" tabindex="0">
                 <div class="story-tracker-subsection-toggle">
                     <i class="fa-solid fa-chevron-right"></i>
                 </div>
@@ -155,7 +285,7 @@ export function renderField(field) {
     const displayValue = value === '' ? '...' : value;
 
     return `
-        <div class="story-tracker-field ${enabledClass}" data-field-id="${field.id}" draggable="true">
+        <div class="story-tracker-field ${enabledClass}" data-field-id="${field.id}" draggable="true" tabindex="0">
             <div class="story-tracker-field-name">${escapeHtml(field.name)}:</div>
             <div class="story-tracker-field-value">${escapeHtml(displayValue)}</div>
             <div class="story-tracker-field-actions">
@@ -216,9 +346,15 @@ function attachSectionEventListeners() {
 function attachSubsectionEventListeners() {
     // Subsection toggle collapse/expand
     $('.story-tracker-subsection-header').off('click').on('click', function(event) {
+        const headerEl = this;
+        if (headerEl.dataset.skipNextToggle === '1') {
+            delete headerEl.dataset.skipNextToggle;
+            return;
+        }
         if (isInteractiveElement(event.target)) {
             return;
         }
+        delete headerEl.dataset.skipNextToggle;
         const $subsection = $(this).closest('.story-tracker-subsection');
         const subsectionId = $subsection.data('subsection-id');
         toggleSubsectionCollapse(subsectionId);
@@ -312,6 +448,8 @@ function handleSectionDragStart(event) {
     if (!sectionEl) {
         return;
     }
+
+    clearActiveInteractiveElement();
 
     dragState.type = 'section';
     dragState.sectionId = sectionEl.getAttribute('data-section-id');
@@ -492,6 +630,8 @@ function handleFieldDragStart(event) {
     if (!sectionEl) {
         return;
     }
+
+    clearActiveInteractiveElement();
 
     dragState.type = 'field';
     dragState.fieldId = fieldEl.getAttribute('data-field-id');
