@@ -49,7 +49,7 @@ export function loadPreset(name) {
             currentPreset: name,
         });
         setLastGeneratedData(clonedTrackerData);
-        setCommittedTrackerData(clonedTrackerData);
+        setCommittedTrackerData(null);
         saveChatData();
         saveSettings();
         renderTrackerHandler();
