@@ -245,11 +245,14 @@ function attachSubsectionEventListeners() {
  * Attaches event listeners for field interactions
  */
 function attachFieldEventListeners() {
-    // Add field button
-    $('[data-action="add-field"]').off('click').on('click', function() {
-        const sectionId = $(this).data('section-id');
-        showAddFieldModal(sectionId);
-    });
+    // Add field button for sections only (avoid rebinding subsection handlers)
+    const $sectionAddButtons = $('[data-action="add-field"][data-section-id]:not([data-subsection-id])');
+    $sectionAddButtons
+        .off('click.story-tracker-section-add-field')
+        .on('click.story-tracker-section-add-field', function() {
+            const sectionId = $(this).data('section-id');
+            showAddFieldModal(sectionId);
+        });
 
     // Edit field button
     $('[data-action="edit-field"]').off('click').on('click', function() {
