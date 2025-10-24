@@ -48,25 +48,31 @@ function getLastAssistantMessage(chat) {
     return null;
 }
 
+const FALLBACK_PROMPT_TYPES = { IN_CHAT: 'in_chat' };
+
 function resolvePromptApi() {
     const context = getContext();
     const setter = context?.setExtensionPrompt || globalThis.setExtensionPrompt;
-    const providedTypes = context?.extension_prompt_types || globalThis.extension_prompt_types;
-    const types = providedTypes || FALLBACK_PROMPT_TYPES;
-    return { setter, types, usingFallback: !providedTypes };
+    const rawTypes = context?.extension_prompt_types || globalThis.extension_prompt_types;
+    const types = rawTypes?.IN_CHAT ? rawTypes : FALLBACK_PROMPT_TYPES;
+    const usedFallback = !rawTypes?.IN_CHAT;
+    return { setter, types, usedFallback };
 }
 
-function callExtensionPrompt(setter, id, content, type, position = 0, shouldPersist = false) {
+function callSetExtensionPrompt(setter, id, value, type, priority = 0, shouldAppend = false) {
     if (typeof setter !== 'function') {
         return;
     }
 
-    if (setter.length <= 3) {
-        setter(id, content, type);
-        return;
-    }
+    const argCount = setter.length;
 
-    setter(id, content, type, position, shouldPersist);
+    if (argCount >= 5) {
+        setter(id, value, type, priority, shouldAppend);
+    } else if (argCount === 4) {
+        setter(id, value, type, priority);
+    } else {
+        setter(id, value, type);
+    }
 }
 
 /**
@@ -251,6 +257,6 @@ export function clearExtensionPrompts() {
         return;
     }
 
-    callExtensionPrompt(setter, 'story-tracker-inject', '', types.IN_CHAT, 0, false);
-    callExtensionPrompt(setter, 'story-tracker-context', '', types.IN_CHAT, 1, false);
+    callSetExtensionPrompt(setter, 'story-tracker-inject', '', types.IN_CHAT, 0, false);
+    callSetExtensionPrompt(setter, 'story-tracker-context', '', types.IN_CHAT, 1, false);
 }
