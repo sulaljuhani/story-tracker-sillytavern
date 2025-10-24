@@ -18,45 +18,7 @@ import {
     DEFAULT_PRESET_NAME,
 } from '../../core/dataManager.js';
 import { initializePresetActions, syncPresetSelection } from '../../core/presetManager.js';
-import { serializeTrackerData, parseTrackerData, FORMAT_JSON } from '../../core/serialization.js';
-
-const FORMAT_YAML = 'yaml';
-let hasWarnedAboutYamlFormat = false;
-
-function normalizeFormat(format) {
-    if (!format) {
-        return FORMAT_JSON;
-    }
-
-    const normalized = String(format).trim().toLowerCase();
-
-    if (normalized === FORMAT_JSON) {
-        return FORMAT_JSON;
-    }
-
-    if (normalized === FORMAT_YAML || normalized === 'yml') {
-        if (!hasWarnedAboutYamlFormat) {
-            console.warn('[Story Tracker] YAML format requested but only JSON is currently supported; defaulting to JSON.');
-            hasWarnedAboutYamlFormat = true;
-        }
-        return FORMAT_JSON;
-    }
-
-    return FORMAT_JSON;
-}
-
-function detectFormatFromFilename(filename) {
-    if (typeof filename !== 'string') {
-        return FORMAT_JSON;
-    }
-
-    const lower = filename.toLowerCase();
-    if (lower.endsWith('.yaml') || lower.endsWith('.yml')) {
-        return FORMAT_YAML;
-    }
-
-    return FORMAT_JSON;
-}
+import { serializeTrackerData, parseTrackerData } from '../../core/serialization.js';
 
 /**
  * SettingsModal - Manages the settings popup modal
@@ -274,14 +236,10 @@ function initializeGeneralSettings(modalBody) {
     });
 }
 
-function initializeDataManager(modalBody, initialFormat) {
-    const formatSelect = modalBody.find('#tracker-data-format');
+function initializeDataManager(modalBody) {
     const editor = modalBody.find('#tracker-data-editor');
     const errorBox = modalBody.find('#tracker-data-error');
     const fileInput = modalBody.find('#tracker-data-file-input');
-
-    let currentFormat = normalizeFormat(initialFormat);
-    formatSelect.val(currentFormat);
 
     const hideDataError = () => {
         errorBox.hide().text('');
@@ -294,7 +252,7 @@ function initializeDataManager(modalBody, initialFormat) {
     const refreshEditor = () => {
         try {
             const data = getTrackerData();
-            editor.val(serializeTrackerData(data, currentFormat));
+            editor.val(serializeTrackerData(data));
             hideDataError();
         } catch (error) {
             showDataError(`Failed to serialize tracker data: ${error.message || error}`);
@@ -344,7 +302,7 @@ function initializeDataManager(modalBody, initialFormat) {
                 syncPresetSelection('');
             }
             updateTrackerData(trackerData);
-            setTrackerDataFormat(currentFormat);
+            setTrackerDataFormat();
             await import('../rendering/tracker.js').then(module => {
                 if (typeof module.renderTracker === 'function') {
                     module.renderTracker();
@@ -362,38 +320,19 @@ function initializeDataManager(modalBody, initialFormat) {
 
     refreshEditor();
 
-    formatSelect.off('change').on('change', () => {
-        const requestedFormat = normalizeFormat(formatSelect.val());
-        if (requestedFormat === currentFormat) {
-            return;
-        }
-
-        try {
-            const textContent = editor.val();
-            const sourceData = textContent.trim() ? parseTrackerData(textContent, currentFormat) : getTrackerData();
-            currentFormat = requestedFormat;
-            editor.val(serializeTrackerData(sourceData, currentFormat));
-            setTrackerDataFormat(currentFormat);
-            hideDataError();
-        } catch (error) {
-            showDataError(`Unable to convert data: ${error.message || error}`);
-            formatSelect.val(currentFormat);
-        }
-    });
-
     modalBody.find('#tracker-data-refresh').off('click').on('click', () => {
         refreshEditor();
         notify('Reloaded tracker data from memory.');
     });
 
     modalBody.find('#tracker-data-load-default').off('click').on('click', () => {
-        loadDefaultTrackerTemplate(currentFormat)
+        loadDefaultTrackerTemplate()
             .then(async template => {
                 if (!template || typeof template.trackerData !== 'object') {
                     throw new Error('Default preset is missing trackerData.');
                 }
                 const trackerData = template.trackerData;
-                editor.val(serializeTrackerData(trackerData, currentFormat));
+                editor.val(serializeTrackerData(trackerData));
                 await applyData({
                     trackerData,
                     systemPrompt: template?.systemPrompt,
@@ -413,7 +352,7 @@ function initializeDataManager(modalBody, initialFormat) {
                 showDataError('Tracker data cannot be empty.');
                 return;
             }
-            const parsed = parseTrackerData(raw, currentFormat);
+            const parsed = parseTrackerData(raw);
             await applyData(parsed, 'Tracker data updated.', { clearPreset: true });
         } catch (error) {
             showDataError(`Failed to parse tracker data: ${error.message || error}`);
@@ -427,9 +366,9 @@ function initializeDataManager(modalBody, initialFormat) {
     modalBody.find('#tracker-data-export').off('click').on('click', () => {
         try {
             const raw = editor.val();
-            const parsed = parseTrackerData(raw, currentFormat);
-            const serialized = serializeTrackerData(parsed, currentFormat);
-            downloadSerialized(serialized, currentFormat);
+            const parsed = parseTrackerData(raw);
+            const serialized = serializeTrackerData(parsed);
+            downloadSerialized(serialized);
             notify('Tracker data exported.');
         } catch (error) {
             showDataError(`Unable to export data: ${error.message || error}`);
@@ -446,11 +385,8 @@ function initializeDataManager(modalBody, initialFormat) {
         reader.onload = async loadEvent => {
             try {
                 const textContent = String(loadEvent.target?.result || '');
-                const detectedFormat = detectFormatFromFilename(file.name);
-                const parsed = parseTrackerData(textContent, detectedFormat);
-                currentFormat = normalizeFormat(detectedFormat);
-                formatSelect.val(currentFormat);
-                editor.val(serializeTrackerData(parsed, currentFormat));
+                const parsed = parseTrackerData(textContent);
+                editor.val(serializeTrackerData(parsed));
                 await applyData(parsed, 'Imported tracker data file.', { clearPreset: true });
                 hideDataError();
             } catch (error) {
@@ -463,12 +399,12 @@ function initializeDataManager(modalBody, initialFormat) {
     });
 }
 
-function downloadSerialized(text, format) {
+function downloadSerialized(text) {
     const blob = new Blob([text], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = format === FORMAT_YAML ? 'story-tracker.yaml' : 'story-tracker.json';
+    link.download = 'story-tracker.json';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -674,7 +610,6 @@ export function showSettingsModal() {
     }
 
     const modalBody = $('#story-tracker-settings-modal .story-tracker-modal-body');
-    const activeFormat = extensionSettings.dataFormat || FORMAT_JSON;
 
     modalBody.html(`
         <div class="story-tracker-settings">
@@ -713,14 +648,14 @@ export function showSettingsModal() {
                 <div class="story-tracker-settings-actions">
                     <button id="tracker-data-apply" class="story-tracker-btn story-tracker-btn-primary">Apply Changes</button>
                 </div>
-                <input type="file" id="tracker-data-file-input" accept=".json,.yaml,.yml" style="display:none;" />
+                <input type="file" id="tracker-data-file-input" accept=".json" style="display:none;" />
             </div>
         </div>
     `);
 
     initializeSettingsTabs(modalBody);
     initializeGeneralSettings(modalBody);
-    initializeDataManager(modalBody, activeFormat);
+    initializeDataManager(modalBody);
     initializePresetActions(modalBody);
 
     openSettingsPopup();

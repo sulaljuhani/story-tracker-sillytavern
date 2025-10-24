@@ -6,7 +6,6 @@ import { extensionSettings, updateExtensionSettings } from './state.js';
 import { saveSettings, saveChatData } from './persistence.js';
 import {
     FORMAT_JSON,
-    parseTrackerData,
     serializeTrackerData
 } from './serialization.js';
 
@@ -73,14 +72,14 @@ export function updateTrackerData(data, options = {}) {
     }
 }
 
-export function setTrackerDataFormat(format) {
-    extensionSettings.dataFormat = format;
+export function setTrackerDataFormat() {
+    extensionSettings.dataFormat = FORMAT_JSON;
     saveSettings();
 }
 
 export function exportTrackerData() {
     const data = getTrackerData();
-    return serializeTrackerData(data, FORMAT_JSON);
+    return serializeTrackerData(data);
 }
 
 function cloneData(data) {
