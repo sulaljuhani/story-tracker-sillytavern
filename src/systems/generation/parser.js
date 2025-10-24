@@ -180,12 +180,39 @@ function findFieldCandidate(collection, templateField) {
     return null;
 }
 
-function restoreTrackerFromLLM(parsedData) {
-    if (!parsedData || typeof parsedData !== 'object' || !parsedData.sections) {
+function findSectionsSource(candidate) {
+    if (!candidate || typeof candidate !== 'object') {
         return null;
     }
 
-    const sectionsSource = parsedData.sections;
+    if (Object.prototype.hasOwnProperty.call(candidate, 'sections')) {
+        return candidate.sections;
+    }
+
+    const values = Array.isArray(candidate) ? candidate : Object.values(candidate);
+    for (const value of values) {
+        if (!value || typeof value !== 'object') {
+            continue;
+        }
+
+        const nested = findSectionsSource(value);
+        if (nested) {
+            return nested;
+        }
+    }
+
+    return null;
+}
+
+function restoreTrackerFromLLM(parsedData) {
+    if (!parsedData || typeof parsedData !== 'object') {
+        return null;
+    }
+
+    const sectionsSource = findSectionsSource(parsedData);
+    if (!sectionsSource) {
+        return null;
+    }
     const hasSections = Array.isArray(sectionsSource)
         ? sectionsSource.length > 0
         : typeof sectionsSource === 'object' && Object.keys(sectionsSource).length > 0;

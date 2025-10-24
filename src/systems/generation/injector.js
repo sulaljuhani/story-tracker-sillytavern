@@ -11,13 +11,56 @@ import {
     lastActionWasSwipe,
     setCommittedTrackerData
 } from '../../core/state.js';
-import { generateTrackerPrompt } from './promptBuilder.js';
+import { generateTrackerPrompt, createTrackerPayloadForLLM } from './promptBuilder.js';
 import { resolvePromptApi, callSetExtensionPrompt } from '../../utils/promptApi.js';
 
 const PROMPT_IDS = {
     INSTRUCTIONS: 'story-tracker-inject',
     CONTEXT: 'story-tracker-context'
 };
+
+function summarizeTrackerTemplate(data) {
+    if (!data || !Array.isArray(data.sections)) {
+        return {
+            sections: 0,
+            subsections: 0,
+            fields: 0
+        };
+    }
+
+    let subsectionCount = 0;
+    let fieldCount = 0;
+
+    for (const section of data.sections) {
+        if (!section || typeof section !== 'object') {
+            continue;
+        }
+
+        if (Array.isArray(section.fields)) {
+            fieldCount += section.fields.length;
+        }
+
+        if (Array.isArray(section.subsections)) {
+            subsectionCount += section.subsections.length;
+
+            for (const subsection of section.subsections) {
+                if (!subsection || typeof subsection !== 'object') {
+                    continue;
+                }
+
+                if (Array.isArray(subsection.fields)) {
+                    fieldCount += subsection.fields.length;
+                }
+            }
+        }
+    }
+
+    return {
+        sections: data.sections.length,
+        subsections: subsectionCount,
+        fields: fieldCount
+    };
+}
 
 function ensureCommittedBaseline() {
     if (lastActionWasSwipe) {
@@ -87,8 +130,20 @@ export function onGenerationStarted() {
         return;
     }
 
+    const baseline = committedTrackerData || extensionSettings.trackerData;
+    const trackerSummary = summarizeTrackerTemplate(baseline);
+    const trackerPayload = createTrackerPayloadForLLM(baseline);
+    const trackerJsonPreview = JSON.stringify(trackerPayload, null, 2).slice(0, 400);
+
+    console.log('[Story Tracker DEBUG] Tracker payload prepared:', {
+        sections: trackerSummary.sections,
+        subsections: trackerSummary.subsections,
+        totalFields: trackerSummary.fields,
+        jsonPreview: trackerJsonPreview
+    });
+
     if (extensionSettings.generationMode === 'together') {
-        const instructions = generateTrackerPrompt(false, committedTrackerData || extensionSettings.trackerData, {
+        const instructions = generateTrackerPrompt(false, baseline, {
             includeNarrative: true
         });
 
@@ -102,7 +157,6 @@ export function onGenerationStarted() {
 
         console.log('[Story Tracker DEBUG] Prompt injected successfully');
     } else if (extensionSettings.generationMode === 'separate') {
-        const baseline = committedTrackerData || extensionSettings.trackerData;
         const contextSummary = buildTrackerContext(baseline);
 
         callSetExtensionPrompt(setter, PROMPT_IDS.INSTRUCTIONS, '', types.IN_CHAT, 0, false);
