@@ -242,9 +242,9 @@ export function setupMobileToggle() {
     });
 
     // Touch end - save position or toggle panel
-    $mobileToggle.on('touchend', function(e) {
-        // TEMPORARILY COMMENTED FOR DIAGNOSIS - might be blocking click fallback
-        // e.preventDefault();
+    $mobileToggle.off('touchend').on('touchend', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
 
         if (isDragging) {
             // Was dragging - save new position
@@ -275,25 +275,37 @@ export function setupMobileToggle() {
             if ($panel.hasClass('story-tracker-mobile-open')) {
                 // Close panel with animation
                 closeMobilePanelWithAnimation();
+                updateCollapseToggleIcon();
             } else {
                 // Open panel
                 $panel.addClass('story-tracker-mobile-open');
                 $('body').append($overlay);
                 $mobileToggle.addClass('active');
+                updateCollapseToggleIcon();
 
                 // Close when clicking overlay
-                $overlay.on('click', function() {
+                $overlay.off('click').on('click', function() {
                     closeMobilePanelWithAnimation();
+                    updateCollapseToggleIcon();
                 });
             }
+
+            $mobileToggle.data('just-tapped', true);
+            setTimeout(() => {
+                $mobileToggle.removeData('just-tapped');
+            }, 400);
         }
     });
 
     // Click handler - works on both mobile and desktop
     $mobileToggle.on('click', function(e) {
         // Skip if we just finished dragging
-        if ($mobileToggle.data('just-dragged')) {
-            console.log('[Story Tracker Mobile] Click blocked - just finished dragging');
+        if ($mobileToggle.data('just-dragged') || $mobileToggle.data('just-tapped')) {
+            const reason = $mobileToggle.data('just-dragged') ? 'drag gesture' : 'touch tap';
+            console.log('[Story Tracker Mobile] Click blocked - ' + reason);
+            e.preventDefault();
+            e.stopPropagation();
+            $mobileToggle.removeData('just-tapped');
             return;
         }
 
@@ -307,15 +319,18 @@ export function setupMobileToggle() {
         if ($panel.hasClass('story-tracker-mobile-open')) {
             console.log('[Story Tracker Mobile] Click: Closing panel');
             closeMobilePanelWithAnimation();
+            updateCollapseToggleIcon();
         } else {
             console.log('[Story Tracker Mobile] Click: Opening panel');
             $panel.addClass('story-tracker-mobile-open');
             $('body').append($overlay);
             $mobileToggle.addClass('active');
+            updateCollapseToggleIcon();
 
-            $overlay.on('click', function() {
+            $overlay.off('click').on('click', function() {
                 console.log('[Story Tracker Mobile] Overlay clicked - closing panel');
                 closeMobilePanelWithAnimation();
+                updateCollapseToggleIcon();
             });
         }
     });

@@ -18,12 +18,12 @@ export function applyTheme() {
 
     // Clear any inline CSS variable overrides
     $panelContainer.css({
-        '--rpg-bg': '',
-        '--rpg-accent': '',
-        '--rpg-text': '',
-        '--rpg-highlight': '',
-        '--rpg-border': '',
-        '--rpg-shadow': ''
+        '--st-bg': '',
+        '--st-accent': '',
+        '--st-text': '',
+        '--st-highlight': '',
+        '--st-border': '',
+        '--st-shadow': ''
     });
 
     // Apply the selected theme
@@ -48,12 +48,12 @@ export function applyCustomTheme() {
 
     // Apply custom CSS variables as inline styles
     $panelContainer.css({
-        '--rpg-bg': colors.bg,
-        '--rpg-accent': colors.accent,
-        '--rpg-text': colors.text,
-        '--rpg-highlight': colors.highlight,
-        '--rpg-border': colors.highlight,
-        '--rpg-shadow': `${colors.highlight}80` // Add alpha for shadow
+        '--st-bg': colors.bg,
+        '--st-accent': colors.accent,
+        '--st-text': colors.text,
+        '--st-highlight': colors.highlight,
+        '--st-border': colors.highlight,
+        '--st-shadow': `${colors.highlight}80` // Add alpha for shadow
     });
 }
 
