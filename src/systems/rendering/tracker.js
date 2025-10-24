@@ -22,8 +22,10 @@ const dragState = {
 
 let sectionDragContainer = null;
 const ACTIVE_ELEMENT_SELECTOR = '.story-tracker-section-header, .story-tracker-subsection-header, .story-tracker-field';
+const supportsPointerEvents = typeof window !== 'undefined' && typeof window.PointerEvent !== 'undefined';
 let activeInteractiveElement = null;
 let activeStateDocumentHandlerRegistered = false;
+let cachedHoverSupport = null;
 
 function resetDragState() {
     dragState.type = null;
@@ -47,6 +49,59 @@ function isTrackerToggleElement(target) {
     return Boolean(target.closest('.story-tracker-section-toggle, .story-tracker-subsection-toggle'));
 }
 
+function deviceSupportsHover() {
+    if (cachedHoverSupport !== null) {
+        return cachedHoverSupport;
+    }
+
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+        cachedHoverSupport = false;
+        return cachedHoverSupport;
+    }
+
+    try {
+        if (window.matchMedia('(any-hover: hover)').matches) {
+            cachedHoverSupport = true;
+            return cachedHoverSupport;
+        }
+        if (window.matchMedia('(hover: hover)').matches && !window.matchMedia('(any-pointer: coarse)').matches) {
+            cachedHoverSupport = true;
+            return cachedHoverSupport;
+        }
+    } catch (error) {
+        // Some browsers may throw for unsupported media queries; treat as no hover support.
+    }
+
+    cachedHoverSupport = false;
+    return cachedHoverSupport;
+}
+
+function shouldActivateForInputType(inputType) {
+    if (!inputType || inputType === 'touch' || inputType === 'pen') {
+        return true;
+    }
+    if (inputType === 'mouse') {
+        return !deviceSupportsHover();
+    }
+    return false;
+}
+
+function focusInteractiveContainer(element) {
+    if (typeof element.focus !== 'function' || element.tabIndex < 0) {
+        return;
+    }
+
+    if (element.matches(':focus')) {
+        return;
+    }
+
+    try {
+        element.focus({ preventScroll: true });
+    } catch (error) {
+        element.focus();
+    }
+}
+
 function clearActiveInteractiveElement() {
     if (activeInteractiveElement) {
         activeInteractiveElement.classList.remove('is-active');
@@ -65,7 +120,7 @@ function setActiveInteractiveElement(element) {
     activeInteractiveElement.classList.add('is-active');
 }
 
-function handleDocumentPointerDown(event) {
+function handleDocumentInteraction(event) {
     if (!activeInteractiveElement) {
         return;
     }
@@ -88,17 +143,31 @@ function handleDocumentPointerDown(event) {
 }
 
 function registerActiveStateDocumentHandlers() {
-    if (activeStateDocumentHandlerRegistered) {
+    if (activeStateDocumentHandlerRegistered || typeof document === 'undefined') {
         return;
     }
 
-    document.addEventListener('pointerdown', handleDocumentPointerDown);
+    if (supportsPointerEvents) {
+        document.addEventListener('pointerdown', handleDocumentInteraction);
+    } else {
+        document.addEventListener('mousedown', handleDocumentInteraction);
+        document.addEventListener('touchstart', handleDocumentInteraction);
+    }
+
     activeStateDocumentHandlerRegistered = true;
 }
 
-function handleActiveStatePointerDown(event) {
+function handleActiveStateActivation(event, inputType) {
     const element = event.currentTarget;
     if (!element) {
+        return;
+    }
+
+    if (inputType === 'mouse' && 'button' in event && event.button !== 0) {
+        return;
+    }
+
+    if (inputType === 'touch' && 'touches' in event && event.touches.length > 1) {
         return;
     }
 
@@ -106,15 +175,34 @@ function handleActiveStatePointerDown(event) {
         return;
     }
 
-    const pointerType = event.pointerType || '';
-    if (pointerType === 'touch' || pointerType === 'pen' || pointerType === '') {
-        if (!element.classList.contains('is-active')) {
-            setActiveInteractiveElement(element);
-            if (element.classList.contains('story-tracker-subsection-header')) {
-                element.dataset.skipNextToggle = '1';
-            }
-        }
+    if (!shouldActivateForInputType(inputType)) {
+        return;
     }
+
+    if (activeInteractiveElement === element) {
+        clearActiveInteractiveElement();
+        return;
+    }
+
+    setActiveInteractiveElement(element);
+    focusInteractiveContainer(element);
+
+    if (element.classList.contains('story-tracker-subsection-header')) {
+        element.dataset.skipNextToggle = '1';
+    }
+}
+
+function handleActiveStatePointerDown(event) {
+    const pointerType = (event.pointerType || '').toLowerCase();
+    handleActiveStateActivation(event, pointerType);
+}
+
+function handleActiveStateMouseDown(event) {
+    handleActiveStateActivation(event, 'mouse');
+}
+
+function handleActiveStateTouchStart(event) {
+    handleActiveStateActivation(event, 'touch');
 }
 
 function handleActiveStateFocusIn(event) {
@@ -147,12 +235,23 @@ function bindActiveStateHandlers(element) {
     }
 
     element.dataset.activeStateBound = '1';
-    element.addEventListener('pointerdown', handleActiveStatePointerDown);
+
+    if (supportsPointerEvents) {
+        element.addEventListener('pointerdown', handleActiveStatePointerDown);
+    } else {
+        element.addEventListener('mousedown', handleActiveStateMouseDown);
+        element.addEventListener('touchstart', handleActiveStateTouchStart);
+    }
+
     element.addEventListener('focusin', handleActiveStateFocusIn);
     element.addEventListener('focusout', handleActiveStateFocusOut);
 }
 
 function initializeActiveStateInteractions() {
+    if (typeof document === 'undefined') {
+        return;
+    }
+
     const container = document.getElementById('story-tracker-sections');
     if (!container) {
         return;

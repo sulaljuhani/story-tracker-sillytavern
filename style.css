@@ -700,19 +700,21 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
 }
 
 .story-tracker-section-actions,
-.story-tracker-subsection-actions {
-    display: flex;
-    gap: 0.25rem;
-    margin-left: auto;
-}
-
-.story-tracker-section-actions,
 .story-tracker-subsection-actions,
 .story-tracker-field-actions {
+    display: flex;
+    gap: 0.25rem;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.2s ease;
+    max-inline-size: 0;
+    overflow: hidden;
+    transition: opacity 0.2s ease, max-inline-size 0.2s ease;
+}
+
+.story-tracker-section-actions,
+.story-tracker-subsection-actions {
+    margin-left: auto;
 }
 
 .story-tracker-field-name {
@@ -729,11 +731,6 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     border-radius: 0.25rem;
 }
 
-.story-tracker-field-actions {
-    display: flex;
-    gap: 0.25rem;
-}
-
 .story-tracker-section-header:hover .story-tracker-section-actions,
 .story-tracker-section-header:focus-within .story-tracker-section-actions,
 .story-tracker-section-header.is-active .story-tracker-section-actions,
@@ -746,6 +743,8 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
+    max-inline-size: 100%;
+    overflow: visible;
 }
 
 .story-tracker-field-actions .story-tracker-btn-small {
