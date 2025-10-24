@@ -6,7 +6,8 @@
 import {
     extensionSettings,
     lastGeneratedData,
-    committedTrackerData
+    committedTrackerData,
+    updateExtensionSettings
 } from '../../core/state.js';
 import { saveSettings, saveChatData } from '../../core/persistence.js';
 import { loadDefaultTrackerTemplate, updateTrackerData, getTrackerData, setTrackerDataFormat } from '../../core/dataManager.js';
@@ -293,15 +294,51 @@ function initializeDataManager(modalBody, initialFormat) {
         }
     };
 
+    const normalizeTrackerPayload = rawData => {
+        const payload = {
+            trackerData: { sections: [] },
+            systemPrompt: undefined,
+        };
+
+        if (rawData && typeof rawData === 'object') {
+            if (rawData.trackerData && typeof rawData.trackerData === 'object') {
+                payload.trackerData = rawData.trackerData;
+                if (typeof rawData.systemPrompt === 'string') {
+                    payload.systemPrompt = rawData.systemPrompt;
+                }
+            } else {
+                payload.trackerData = rawData;
+            }
+        }
+
+        const trackerDataSource = payload.trackerData && typeof payload.trackerData === 'object'
+            ? payload.trackerData
+            : { sections: [] };
+
+        const normalizedSections = Array.isArray(trackerDataSource.sections)
+            ? trackerDataSource.sections
+            : [];
+
+        return {
+            trackerData: { ...trackerDataSource, sections: normalizedSections },
+            systemPrompt: payload.systemPrompt,
+        };
+    };
+
     const applyData = async (data, successMessage) => {
         try {
-            updateTrackerData(data);
+            const { trackerData, systemPrompt } = normalizeTrackerPayload(data);
+            if (typeof systemPrompt === 'string') {
+                updateExtensionSettings({ systemPrompt });
+            }
+            updateTrackerData(trackerData);
             setTrackerDataFormat(currentFormat);
             await import('../rendering/tracker.js').then(module => {
                 if (typeof module.renderTracker === 'function') {
                     module.renderTracker();
                 }
             });
+            refreshEditor();
             hideDataError();
             if (successMessage) {
                 notify(successMessage);
@@ -340,8 +377,15 @@ function initializeDataManager(modalBody, initialFormat) {
     modalBody.find('#tracker-data-load-default').off('click').on('click', () => {
         loadDefaultTrackerTemplate(currentFormat)
             .then(async template => {
-                editor.val(serializeTrackerData(template, currentFormat));
-                await applyData(template, 'Loaded default tracker template.');
+                if (!template || typeof template.trackerData !== 'object') {
+                    throw new Error('Default preset is missing trackerData.');
+                }
+                const trackerData = template.trackerData;
+                editor.val(serializeTrackerData(trackerData, currentFormat));
+                await applyData({
+                    trackerData,
+                    systemPrompt: template?.systemPrompt,
+                }, 'Loaded default tracker template.');
             })
             .catch(error => {
                 showDataError(`Failed to load default template: ${error.message || error}`);
