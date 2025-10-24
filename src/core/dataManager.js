@@ -13,6 +13,8 @@ import {
 const base = new URL('.', import.meta.url);
 const DEFAULT_PRESET_PATH = new URL('../../data/default-preset.json', base);
 
+export const DEFAULT_PRESET_NAME = 'Default';
+
 export async function loadDefaultTrackerTemplate() {
     const response = await fetch(DEFAULT_PRESET_PATH, { cache: 'no-cache' });
     if (!response.ok) {
@@ -38,7 +40,7 @@ export async function ensureTrackerDataInitialized() {
         updateExtensionSettings({
             systemPrompt: preset.systemPrompt,
             trackerData: preset.trackerData,
-            currentPreset: 'Default',
+            currentPreset: DEFAULT_PRESET_NAME,
         });
         saveSettings();
         saveChatData();
