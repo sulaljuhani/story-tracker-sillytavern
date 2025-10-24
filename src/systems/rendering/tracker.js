@@ -16,6 +16,7 @@ const dragState = {
     sectionId: null,
     fieldId: null,
     sourceSectionId: null,
+    sourceSubsectionId: null,
 };
 
 let sectionDragContainer = null;
@@ -25,6 +26,7 @@ function resetDragState() {
     dragState.sectionId = null;
     dragState.fieldId = null;
     dragState.sourceSectionId = null;
+    dragState.sourceSubsectionId = null;
 }
 
 function isInteractiveElement(target) {
@@ -439,26 +441,42 @@ function setupFieldDragAndDrop(container) {
 
     sectionElements.forEach(sectionEl => {
         const sectionId = sectionEl.getAttribute('data-section-id');
-        const contentEl = sectionEl.querySelector('.story-tracker-section-content');
-        if (!sectionId || !contentEl) {
+        const sectionContentEl = sectionEl.querySelector('.story-tracker-section-content');
+        if (!sectionId || !sectionContentEl) {
             return;
         }
 
-        contentEl.dataset.sectionId = sectionId;
+        sectionContentEl.dataset.sectionId = sectionId;
+        initializeFieldDragContainer(sectionContentEl);
 
-        if (!contentEl.dataset.fieldDragHandlers) {
-            contentEl.addEventListener('dragover', handleFieldContainerDragOver);
-            contentEl.addEventListener('drop', handleFieldContainerDrop);
-            contentEl.addEventListener('dragleave', handleFieldContainerDragLeave);
-            contentEl.dataset.fieldDragHandlers = '1';
-        }
+        const subsectionContents = Array.from(sectionEl.querySelectorAll('.story-tracker-subsection-content'));
+        subsectionContents.forEach(subsectionContentEl => {
+            const subsectionEl = subsectionContentEl.closest('.story-tracker-subsection');
+            const subsectionId = subsectionEl ? subsectionEl.getAttribute('data-subsection-id') : null;
+            if (!subsectionId) {
+                return;
+            }
 
-        const fields = Array.from(contentEl.querySelectorAll('.story-tracker-field'));
-        fields.forEach(fieldEl => {
-            fieldEl.setAttribute('draggable', 'true');
-            fieldEl.addEventListener('dragstart', handleFieldDragStart);
-            fieldEl.addEventListener('dragend', handleFieldDragEnd);
+            subsectionContentEl.dataset.sectionId = sectionId;
+            subsectionContentEl.dataset.subsectionId = subsectionId;
+            initializeFieldDragContainer(subsectionContentEl);
         });
+    });
+}
+
+function initializeFieldDragContainer(contentEl) {
+    if (!contentEl.dataset.fieldDragHandlers) {
+        contentEl.addEventListener('dragover', handleFieldContainerDragOver);
+        contentEl.addEventListener('drop', handleFieldContainerDrop);
+        contentEl.addEventListener('dragleave', handleFieldContainerDragLeave);
+        contentEl.dataset.fieldDragHandlers = '1';
+    }
+
+    const fields = getFieldsForContainer(contentEl);
+    fields.forEach(fieldEl => {
+        fieldEl.setAttribute('draggable', 'true');
+        fieldEl.addEventListener('dragstart', handleFieldDragStart);
+        fieldEl.addEventListener('dragend', handleFieldDragEnd);
     });
 }
 
@@ -477,6 +495,8 @@ function handleFieldDragStart(event) {
     dragState.type = 'field';
     dragState.fieldId = fieldEl.getAttribute('data-field-id');
     dragState.sourceSectionId = sectionEl.getAttribute('data-section-id');
+    const subsectionEl = fieldEl.closest('.story-tracker-subsection');
+    dragState.sourceSubsectionId = subsectionEl ? subsectionEl.getAttribute('data-subsection-id') : null;
 
     try {
         event.dataTransfer.effectAllowed = 'move';
@@ -492,9 +512,14 @@ function handleFieldDragStart(event) {
 function handleFieldDragEnd(event) {
     const fieldEl = event.currentTarget;
     fieldEl.classList.remove('story-tracker-dragging');
-    const container = fieldEl.closest('.story-tracker-section-content');
-    if (container) {
-        clearFieldDropIndicators(container);
+    const subsectionContainer = fieldEl.closest('.story-tracker-subsection-content');
+    if (subsectionContainer) {
+        clearFieldDropIndicators(subsectionContainer);
+    } else {
+        const sectionContainer = fieldEl.closest('.story-tracker-section-content');
+        if (sectionContainer) {
+            clearFieldDropIndicators(sectionContainer);
+        }
     }
     resetDragState();
 }
@@ -505,7 +530,13 @@ function handleFieldContainerDragOver(event) {
     }
 
     const container = event.currentTarget;
-    if (container.dataset.sectionId !== dragState.sourceSectionId) {
+    const containerSectionId = container.dataset.sectionId;
+    const containerSubsectionId = container.dataset.subsectionId || null;
+    if (containerSectionId !== dragState.sourceSectionId) {
+        return;
+    }
+
+    if ((dragState.sourceSubsectionId || null) !== containerSubsectionId) {
         return;
     }
 
@@ -522,7 +553,13 @@ function handleFieldContainerDrop(event) {
     }
 
     const container = event.currentTarget;
-    if (container.dataset.sectionId !== dragState.sourceSectionId) {
+    const containerSectionId = container.dataset.sectionId;
+    const containerSubsectionId = container.dataset.subsectionId || null;
+    if (containerSectionId !== dragState.sourceSectionId) {
+        return;
+    }
+
+    if ((dragState.sourceSubsectionId || null) !== containerSubsectionId) {
         return;
     }
 
@@ -530,7 +567,7 @@ function handleFieldContainerDrop(event) {
     event.stopPropagation();
 
     const position = computeFieldInsertPosition(container, event.clientY, dragState.fieldId);
-    moveFieldWithinSection(dragState.sourceSectionId, dragState.fieldId, position.insertIndex);
+    moveFieldWithinContainer(dragState.sourceSectionId, dragState.sourceSubsectionId, dragState.fieldId, position.insertIndex);
     clearFieldDropIndicators(container);
     resetDragState();
 }
@@ -541,14 +578,23 @@ function handleFieldContainerDragLeave(event) {
     }
 
     const container = event.currentTarget;
+    const containerSectionId = container.dataset.sectionId;
+    const containerSubsectionId = container.dataset.subsectionId || null;
+    if (containerSectionId !== dragState.sourceSectionId) {
+        return;
+    }
+
+    if ((dragState.sourceSubsectionId || null) !== containerSubsectionId) {
+        return;
+    }
+
     if (!container.contains(event.relatedTarget)) {
         clearFieldDropIndicators(container);
     }
 }
 
 function computeFieldInsertPosition(container, pointerY, excludeFieldId) {
-    const fields = Array.from(container.querySelectorAll('.story-tracker-field'));
-    const filtered = fields.filter(field => field.getAttribute('data-field-id') !== excludeFieldId);
+    const filtered = getFieldsForContainer(container).filter(field => field.getAttribute('data-field-id') !== excludeFieldId);
 
     let insertIndex = filtered.length;
     let reference = null;
@@ -567,7 +613,7 @@ function computeFieldInsertPosition(container, pointerY, excludeFieldId) {
 }
 
 function updateFieldDropIndicators(container, referenceElement) {
-    const fields = Array.from(container.querySelectorAll('.story-tracker-field'));
+    const fields = getFieldsForContainer(container);
     fields.forEach(field => {
         field.classList.toggle('story-tracker-drop-before', field === referenceElement);
     });
@@ -577,30 +623,68 @@ function updateFieldDropIndicators(container, referenceElement) {
 
 function clearFieldDropIndicators(container) {
     container.classList.remove('story-tracker-drop-at-end');
-    Array.from(container.querySelectorAll('.story-tracker-field')).forEach(field => {
+    getFieldsForContainer(container).forEach(field => {
         field.classList.remove('story-tracker-drop-before', 'story-tracker-dragging');
     });
 }
 
-function moveFieldWithinSection(sectionId, fieldId, insertIndex) {
-    const section = findSectionById(sectionId);
-    if (!section || !Array.isArray(section.fields)) {
-        return;
+function getFieldsForContainer(container) {
+    const fields = Array.from(container.querySelectorAll('.story-tracker-field'));
+    const containerSubsection = container.closest('.story-tracker-subsection-content');
+
+    return fields.filter(field => {
+        const fieldSubsection = field.closest('.story-tracker-subsection-content');
+
+        if (container.dataset.subsectionId) {
+            return fieldSubsection === container;
+        }
+
+        return !fieldSubsection || fieldSubsection === containerSubsection;
+    });
+}
+
+function moveFieldWithinContainer(sectionId, subsectionId, fieldId, insertIndex) {
+    if (subsectionId) {
+        const subsection = findSubsectionById(subsectionId);
+        if (!subsection || !Array.isArray(subsection.fields)) {
+            return;
+        }
+
+        const currentIndex = subsection.fields.findIndex(field => field.id === fieldId);
+        if (currentIndex === -1) {
+            return;
+        }
+
+        const [movedField] = subsection.fields.splice(currentIndex, 1);
+        const clampedIndex = Math.max(0, Math.min(insertIndex, subsection.fields.length));
+        subsection.fields.splice(clampedIndex, 0, movedField);
+    } else {
+        const section = findSectionById(sectionId);
+        if (!section || !Array.isArray(section.fields)) {
+            return;
+        }
+
+        const currentIndex = section.fields.findIndex(field => field.id === fieldId);
+        if (currentIndex === -1) {
+            return;
+        }
+
+        const [movedField] = section.fields.splice(currentIndex, 1);
+        const clampedIndex = Math.max(0, Math.min(insertIndex, section.fields.length));
+        section.fields.splice(clampedIndex, 0, movedField);
     }
 
-    const currentIndex = section.fields.findIndex(field => field.id === fieldId);
-    if (currentIndex === -1) {
-        return;
-    }
-
-    const [movedField] = section.fields.splice(currentIndex, 1);
-    const clampedIndex = Math.max(0, Math.min(insertIndex, section.fields.length));
-    section.fields.splice(clampedIndex, 0, movedField);
     saveSettings();
     syncTrackerBaselines();
     saveChatData();
     renderTracker();
 }
+
+export const __testables = {
+    moveFieldWithinContainer,
+    getFieldsForContainer,
+    computeFieldInsertPosition,
+};
 
 /**
  * Section action functions
