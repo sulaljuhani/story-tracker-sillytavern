@@ -32,7 +32,7 @@ function ensureChatMetadata(context) {
     return context.chat.metadata;
 }
 
-function deepClone(value) {
+export function deepClone(value) {
     return value == null ? null : JSON.parse(JSON.stringify(value));
 }
 

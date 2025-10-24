@@ -2,7 +2,7 @@
  * Tracker data management utilities
  */
 
-import { extensionSettings } from './state.js';
+import { extensionSettings, updateExtensionSettings } from './state.js';
 import { saveSettings, saveChatData } from './persistence.js';
 import {
     FORMAT_JSON,

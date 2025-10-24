@@ -124,15 +124,15 @@ export function showEditPromptModal() {
     `);
 
     $('#cancel-edit-prompt').on('click', () => {
-        import('./modals.js').then(module => module.closeFieldPopup());
+        import('../systems/ui/modals.js').then(module => module.closeFieldPopup());
     });
 
     $('#save-edit-prompt').on('click', () => {
         const newPrompt = $('#system-prompt-editor').val();
         updateExtensionSettings({ systemPrompt: newPrompt });
         saveSettings();
-        import('./modals.js').then(module => module.closeFieldPopup());
+        import('../systems/ui/modals.js').then(module => module.closeFieldPopup());
     });
 
-    import('./modals.js').then(module => module.openFieldPopup());
+    import('../systems/ui/modals.js').then(module => module.openFieldPopup());
 }
