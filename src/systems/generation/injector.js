@@ -30,6 +30,14 @@ function resolvePromptApi() {
     const context = getContext();
     const setter = context?.setExtensionPrompt || globalThis.setExtensionPrompt;
     const rawTypes = context?.extension_prompt_types || globalThis.extension_prompt_types;
+    let types = rawTypes;
+
+    if (!types?.IN_CHAT) {
+        if (!globalThis.__storyTrackerFallbackPromptTypes) {
+            globalThis.__storyTrackerFallbackPromptTypes = { IN_CHAT: 'in_chat' };
+        }
+        types = globalThis.__storyTrackerFallbackPromptTypes;
+    }
     const types = rawTypes?.IN_CHAT ? rawTypes : FALLBACK_PROMPT_TYPES;
     const usedFallback = !rawTypes?.IN_CHAT;
 
