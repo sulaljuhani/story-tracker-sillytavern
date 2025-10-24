@@ -470,7 +470,45 @@ export function showAddSectionModal() {
  * Shows the add subsection modal
  */
 export function showAddSubsectionModal(sectionId) {
-    // This function is now empty as subsections are removed
+    if (!sectionId) {
+        console.warn('[Story Tracker] showAddSubsectionModal called without a sectionId');
+        return;
+    }
+
+    const modalBody = $('#story-tracker-settings-modal .story-tracker-modal-body');
+    modalBody.html(`
+        <div style="padding: 1rem;">
+            <h4>Add New Subsection</h4>
+            <div style="margin: 1rem 0;">
+                <label for="subsection-name" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Subsection Name:</label>
+                <input type="text" id="subsection-name" placeholder="Enter subsection name" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                <button id="cancel-add-subsection" class="story-tracker-btn">Cancel</button>
+                <button id="confirm-add-subsection" class="story-tracker-btn story-tracker-btn-primary">Add Subsection</button>
+            </div>
+        </div>
+    `);
+
+    modalBody.find('#cancel-add-subsection').on('click', () => closeSettingsPopup());
+
+    modalBody.find('#confirm-add-subsection').on('click', () => {
+        const subsectionName = modalBody.find('#subsection-name').val().trim();
+        if (!subsectionName) {
+            return;
+        }
+
+        import('../rendering/tracker.js').then(module => {
+            if (typeof module.addSubsection === 'function') {
+                module.addSubsection(sectionId, subsectionName);
+            }
+            closeSettingsPopup();
+        }).catch(error => {
+            console.error('[Story Tracker] Failed to add subsection:', error);
+        });
+    });
+
+    openSettingsPopup();
 }
 
 /**
