@@ -70,8 +70,72 @@ function restoreTrackerFromLLM(parsedData) {
 }
 
 const HTML_REGEX = /(<div[^>]*>[\s\S]*?<\/div>|<style[^>]*>[\s\S]*?<\/style>|<script[^>]*>[\s\S]*?<\/script>)/gi;
-const CODE_BLOCK_REGEX = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
+const CODE_BLOCK_REGEX = /```(?:[a-zA-Z0-9_-]+)?\s*([\s\S]*?)\s*```/gi;
 const MULTI_NEWLINE_REGEX = /\n{3,}/g;
+
+function tryParseTrackerJson(candidate) {
+    if (!candidate) {
+        return null;
+    }
+
+    try {
+        const parsedData = JSON.parse(candidate);
+        return restoreTrackerFromLLM(parsedData);
+    } catch (_error) {
+        return null;
+    }
+}
+
+function findBalancedJsonCandidate(text) {
+    if (!text) {
+        return null;
+    }
+
+    for (let start = text.indexOf('{'); start !== -1; start = text.indexOf('{', start + 1)) {
+        let depth = 0;
+        let inString = false;
+        let escape = false;
+
+        for (let index = start; index < text.length; index += 1) {
+            const char = text[index];
+
+            if (escape) {
+                escape = false;
+                continue;
+            }
+
+            if (char === '\\') {
+                escape = true;
+                continue;
+            }
+
+            if (char === '"') {
+                inString = !inString;
+                continue;
+            }
+
+            if (inString) {
+                continue;
+            }
+
+            if (char === '{') {
+                depth += 1;
+            } else if (char === '}') {
+                depth -= 1;
+
+                if (depth === 0) {
+                    return {
+                        start,
+                        end: index + 1,
+                        candidate: text.slice(start, index + 1)
+                    };
+                }
+            }
+        }
+    }
+
+    return null;
+}
 
 /**
  * Parses the model response to extract tracker data and cleaned narrative text.
@@ -104,21 +168,28 @@ export function parseResponse(responseText) {
             continue;
         }
 
-        const trimmed = captured.trim();
-        try {
-            const parsedData = JSON.parse(trimmed);
-            const restored = restoreTrackerFromLLM(parsedData);
+        const restored = tryParseTrackerJson(captured.trim());
+        if (restored) {
+            result.trackerData = restored;
+            removalBounds = {
+                start: match.index,
+                end: match.index + fullMatch.length
+            };
+            break;
+        }
+    }
+
+    if (!result.trackerData) {
+        const fallbackCandidate = findBalancedJsonCandidate(workingText);
+        if (fallbackCandidate) {
+            const restored = tryParseTrackerJson(fallbackCandidate.candidate.trim());
             if (restored) {
                 result.trackerData = restored;
                 removalBounds = {
-                    start: match.index,
-                    end: match.index + fullMatch.length
+                    start: fallbackCandidate.start,
+                    end: fallbackCandidate.end
                 };
-                break;
             }
-        } catch (error) {
-            // Ignore parsing errors for non-JSON code blocks; try next block
-            continue;
         }
     }
 
