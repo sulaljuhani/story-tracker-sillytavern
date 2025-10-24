@@ -20,10 +20,6 @@ import { onGenerationStarted } from '../generation/injector.js';
 
 const SWIPE_STORAGE_KEY = 'story_tracker_swipes';
 
-const FALLBACK_PROMPT_TYPES = Object.freeze({
-    IN_CHAT: 'in_chat'
-});
-
 function getContext() {
     return globalThis.SillyTavern?.getContext?.();
 }
@@ -31,6 +27,10 @@ function getContext() {
 function cloneData(data) {
     return data ? JSON.parse(JSON.stringify(data)) : null;
 }
+
+const FALLBACK_PROMPT_TYPES = Object.freeze({
+    IN_CHAT: 'in_chat'
+});
 
 function getLastAssistantMessage(chat) {
     if (!Array.isArray(chat)) {
@@ -47,8 +47,6 @@ function getLastAssistantMessage(chat) {
 
     return null;
 }
-
-const FALLBACK_PROMPT_TYPES = { IN_CHAT: 'in_chat' };
 
 function resolvePromptApi() {
     const context = getContext();
