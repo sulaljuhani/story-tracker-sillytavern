@@ -20,6 +20,10 @@ import { onGenerationStarted } from '../generation/injector.js';
 
 const SWIPE_STORAGE_KEY = 'story_tracker_swipes';
 
+const FALLBACK_PROMPT_TYPES = Object.freeze({
+    IN_CHAT: 'in_chat'
+});
+
 function getContext() {
     return globalThis.SillyTavern?.getContext?.();
 }
@@ -47,8 +51,22 @@ function getLastAssistantMessage(chat) {
 function resolvePromptApi() {
     const context = getContext();
     const setter = context?.setExtensionPrompt || globalThis.setExtensionPrompt;
-    const types = context?.extension_prompt_types || globalThis.extension_prompt_types;
-    return { setter, types };
+    const providedTypes = context?.extension_prompt_types || globalThis.extension_prompt_types;
+    const types = providedTypes || FALLBACK_PROMPT_TYPES;
+    return { setter, types, usingFallback: !providedTypes };
+}
+
+function callExtensionPrompt(setter, id, content, type, position = 0, shouldPersist = false) {
+    if (typeof setter !== 'function') {
+        return;
+    }
+
+    if (setter.length <= 3) {
+        setter(id, content, type);
+        return;
+    }
+
+    setter(id, content, type, position, shouldPersist);
 }
 
 /**
@@ -233,6 +251,6 @@ export function clearExtensionPrompts() {
         return;
     }
 
-    setter('story-tracker-inject', '', types.IN_CHAT, 0, false);
-    setter('story-tracker-context', '', types.IN_CHAT, 1, false);
+    callExtensionPrompt(setter, 'story-tracker-inject', '', types.IN_CHAT, 0, false);
+    callExtensionPrompt(setter, 'story-tracker-context', '', types.IN_CHAT, 1, false);
 }
