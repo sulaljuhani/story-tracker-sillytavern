@@ -108,6 +108,16 @@ export function setSectionsContainer($element) {
  */
 
 /**
+ * Synchronize baseline tracker data snapshots used for prompt generation.
+ * Deep clones the current tracker data into both last generated and committed states.
+ */
+export function syncTrackerBaselines() {
+    const trackerData = cloneTrackerData(extensionSettings?.trackerData);
+    setLastGeneratedData(trackerData);
+    setCommittedTrackerData(trackerData);
+}
+
+/**
  * Generate a unique ID for tracker elements
  * @param {string} prefix - Prefix for the ID
  * @returns {string} Unique ID
