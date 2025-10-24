@@ -3,7 +3,7 @@ import { extensionSettings, updateExtensionSettings, setPanelContainer, setSecti
 import { loadDefaultTrackerTemplate, DEFAULT_PRESET_NAME } from './src/core/dataManager.js';
 import { renderTracker } from './src/systems/rendering/tracker.js';
 import { setupPresetManager, saveCurrentPreset } from './src/core/presetManager.js';
-import { setupSettingsPopup, setupFieldPopup, showSettingsModal } from './src/systems/ui/modals.js';
+import { setupSettingsPopup, setupFieldPopup, showSettingsModal, showAddSectionModal } from './src/systems/ui/modals.js';
 import { updateTrackerData } from './src/systems/generation/apiClient.js';
 import { loadChatData } from './src/core/persistence.js';
 import { registerAllEvents } from './src/core/events.js';
@@ -169,6 +169,30 @@ function registerEventHandlers() {
     eventsRegistered = true;
 }
 
+const ADD_SECTION_EVENT_NAMESPACE = 'click.storyTrackerAddSection';
+
+const handleAddSectionClick = () => {
+    showAddSectionModal();
+};
+
+function bindAddSectionButton({ $root, root }) {
+    if ($root?.length) {
+        const $button = $root.find('#story-tracker-add-section');
+        if ($button.length) {
+            $button.off(ADD_SECTION_EVENT_NAMESPACE).on(ADD_SECTION_EVENT_NAMESPACE, handleAddSectionClick);
+        }
+        return;
+    }
+
+    if (root) {
+        const button = root.querySelector('#story-tracker-add-section');
+        if (button) {
+            button.removeEventListener('click', handleAddSectionClick);
+            button.addEventListener('click', handleAddSectionClick);
+        }
+    }
+}
+
 let isExtensionInitialized = false;
 
 async function initializeExtension(root, html, base, { viaFallback = false } = {}) {
@@ -238,6 +262,8 @@ async function initializeExtension(root, html, base, { viaFallback = false } = {
         import(new URL('./src/core/presetManager.js', base)).then(module => module.showEditPromptModal());
     });
 
+    bindAddSectionButton({ $root, root });
+
     registerEventHandlers();
 
     isExtensionInitialized = true;
@@ -268,6 +294,10 @@ async function bootstrapFallback(html, base) {
     }
 
     await initializeExtension(root, html, base, { viaFallback: true });
+
+    if (!globalThis.jQuery) {
+        bindAddSectionButton({ root });
+    }
 }
 
 console.log('[Story Tracker] Script loaded');
