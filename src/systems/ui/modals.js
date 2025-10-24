@@ -12,6 +12,44 @@ import { saveSettings, saveChatData } from '../../core/persistence.js';
 import { loadDefaultTrackerTemplate, updateTrackerData, getTrackerData, setTrackerDataFormat } from '../../core/dataManager.js';
 import { serializeTrackerData, parseTrackerData, FORMAT_JSON } from '../../core/serialization.js';
 
+const FORMAT_YAML = 'yaml';
+let hasWarnedAboutYamlFormat = false;
+
+function normalizeFormat(format) {
+    if (!format) {
+        return FORMAT_JSON;
+    }
+
+    const normalized = String(format).trim().toLowerCase();
+
+    if (normalized === FORMAT_JSON) {
+        return FORMAT_JSON;
+    }
+
+    if (normalized === FORMAT_YAML || normalized === 'yml') {
+        if (!hasWarnedAboutYamlFormat) {
+            console.warn('[Story Tracker] YAML format requested but only JSON is currently supported; defaulting to JSON.');
+            hasWarnedAboutYamlFormat = true;
+        }
+        return FORMAT_JSON;
+    }
+
+    return FORMAT_JSON;
+}
+
+function detectFormatFromFilename(filename) {
+    if (typeof filename !== 'string') {
+        return FORMAT_JSON;
+    }
+
+    const lower = filename.toLowerCase();
+    if (lower.endsWith('.yaml') || lower.endsWith('.yml')) {
+        return FORMAT_YAML;
+    }
+
+    return FORMAT_JSON;
+}
+
 /**
  * SettingsModal - Manages the settings popup modal
  * Handles opening, closing, theming, and animations

@@ -11,6 +11,47 @@ import { saveSettings, saveChatData } from '../../core/persistence.js';
 /** @typedef {import('../../types/tracker.js').TrackerSubsection} TrackerSubsection */
 /** @typedef {import('../../types/tracker.js').TrackerField} TrackerField */
 
+const sortableModuleUrl = new URL('../../lib/sortable.min.js', import.meta.url);
+let sortableLoadPromise = null;
+
+function loadSortableLibrary() {
+    if (typeof Sortable !== 'undefined') {
+        return Promise.resolve(Sortable);
+    }
+
+    if (!sortableLoadPromise) {
+        sortableLoadPromise = import(sortableModuleUrl)
+            .then(module => {
+                const candidates = [module?.default, module?.Sortable, module];
+
+                for (const candidate of candidates) {
+                    if (typeof candidate === 'function' && typeof candidate.create === 'function') {
+                        if (typeof globalThis.Sortable === 'undefined') {
+                            globalThis.Sortable = candidate;
+                        }
+                        return candidate;
+                    }
+
+                    if (candidate && typeof candidate.Sortable === 'function' && typeof candidate.Sortable.create === 'function') {
+                        if (typeof globalThis.Sortable === 'undefined') {
+                            globalThis.Sortable = candidate.Sortable;
+                        }
+                        return candidate.Sortable;
+                    }
+                }
+
+                throw new Error('Sortable module did not expose a usable create function');
+            })
+            .catch(error => {
+                console.warn('[Story Tracker] Failed to load Sortable library', error);
+                sortableLoadPromise = null;
+                throw error;
+            });
+    }
+
+    return sortableLoadPromise;
+}
+
 /**
  * Renders the complete tracker UI
  */
@@ -210,72 +251,79 @@ function attachFieldEventListeners() {
  * Initializes drag-and-drop functionality using Sortable.js
  */
 function initializeDragAndDrop() {
-    if (typeof Sortable === 'undefined') {
-        console.warn('[Story Tracker] Sortable library not available; drag-and-drop disabled');
+    const sectionsContainerEl = document.getElementById('story-tracker-sections');
+    const sectionElements = document.querySelectorAll('.story-tracker-section');
+
+    if (!sectionsContainerEl || sectionElements.length === 0) {
         return;
     }
 
-    const sectionsContainerEl = document.getElementById('story-tracker-sections');
-    if (sectionsContainerEl && sectionsContainerEl.children.length > 0) {
-        Sortable.create(sectionsContainerEl, {
-            animation: 150,
-            handle: '.story-tracker-section-header',
-            draggable: '.story-tracker-section',
-            ghostClass: 'story-tracker-drag-placeholder',
-            onEnd: ({ oldIndex, newIndex }) => {
-                if (oldIndex === newIndex || oldIndex == null || newIndex == null) {
+    loadSortableLibrary()
+        .then(SortableLib => {
+            if (sectionsContainerEl.children.length > 0) {
+                SortableLib.create(sectionsContainerEl, {
+                    animation: 150,
+                    handle: '.story-tracker-section-header',
+                    draggable: '.story-tracker-section',
+                    ghostClass: 'story-tracker-drag-placeholder',
+                    onEnd: ({ oldIndex, newIndex }) => {
+                        if (oldIndex === newIndex || oldIndex == null || newIndex == null) {
+                            return;
+                        }
+
+                        ensureTrackerData();
+                        const sections = extensionSettings.trackerData.sections || [];
+                        const [movedSection] = sections.splice(oldIndex, 1);
+                        if (movedSection) {
+                            sections.splice(newIndex, 0, movedSection);
+                            saveSettings();
+                            saveChatData();
+                            renderTracker();
+                        }
+                    },
+                });
+            }
+
+            sectionElements.forEach(sectionEl => {
+                const sectionId = sectionEl.getAttribute('data-section-id');
+                const contentEl = sectionEl.querySelector('.story-tracker-section-content');
+                if (!sectionId || !contentEl) {
                     return;
                 }
 
-                ensureTrackerData();
-                const sections = extensionSettings.trackerData.sections || [];
-                const [movedSection] = sections.splice(oldIndex, 1);
-                if (movedSection) {
-                    sections.splice(newIndex, 0, movedSection);
-                    saveSettings();
-                    saveChatData();
-                    renderTracker();
+                if (!contentEl.querySelector('.story-tracker-field')) {
+                    return;
                 }
-            },
+
+                SortableLib.create(contentEl, {
+                    animation: 150,
+                    handle: '.story-tracker-field',
+                    draggable: '.story-tracker-field',
+                    ghostClass: 'story-tracker-drag-placeholder',
+                    onEnd: ({ oldIndex, newIndex }) => {
+                        if (oldIndex === newIndex || oldIndex == null || newIndex == null) {
+                            return;
+                        }
+
+                        const section = findSectionById(sectionId);
+                        if (!section || !Array.isArray(section.fields)) {
+                            return;
+                        }
+
+                        const [movedField] = section.fields.splice(oldIndex, 1);
+                        if (movedField) {
+                            section.fields.splice(newIndex, 0, movedField);
+                            saveSettings();
+                            saveChatData();
+                            renderTracker();
+                        }
+                    },
+                });
+            });
+        })
+        .catch(error => {
+            console.warn('[Story Tracker] Sortable library unavailable; drag-and-drop disabled', error);
         });
-    }
-
-    document.querySelectorAll('.story-tracker-section').forEach(sectionEl => {
-        const sectionId = sectionEl.getAttribute('data-section-id');
-        const contentEl = sectionEl.querySelector('.story-tracker-section-content');
-        if (!sectionId || !contentEl) {
-            return;
-        }
-
-        if (!contentEl.querySelector('.story-tracker-field')) {
-            return;
-        }
-
-        Sortable.create(contentEl, {
-            animation: 150,
-            handle: '.story-tracker-field',
-            draggable: '.story-tracker-field',
-            ghostClass: 'story-tracker-drag-placeholder',
-            onEnd: ({ oldIndex, newIndex }) => {
-                if (oldIndex === newIndex || oldIndex == null || newIndex == null) {
-                    return;
-                }
-
-                const section = findSectionById(sectionId);
-                if (!section || !Array.isArray(section.fields)) {
-                    return;
-                }
-
-                const [movedField] = section.fields.splice(oldIndex, 1);
-                if (movedField) {
-                    section.fields.splice(newIndex, 0, movedField);
-                    saveSettings();
-                    saveChatData();
-                    renderTracker();
-                }
-            },
-        });
-    });
 }
 
 /**
