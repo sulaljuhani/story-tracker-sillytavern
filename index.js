@@ -5,6 +5,10 @@ import { renderTracker } from './src/systems/rendering/tracker.js';
 import { setupPresetManager, saveCurrentPreset } from './src/core/presetManager.js';
 import { setupSettingsPopup, setupFieldPopup, showSettingsModal } from './src/systems/ui/modals.js';
 import { updateTrackerData } from './src/systems/generation/apiClient.js';
+import { loadChatData } from './src/core/persistence.js';
+import { registerAllEvents } from './src/core/events.js';
+import { commitTrackerData, onMessageSent, onMessageReceived, onCharacterChanged, onMessageSwiped, updatePersonaAvatar } from './src/systems/integration/sillytavern.js';
+import { onGenerationStarted } from './src/systems/generation/injector.js';
 import { setupMobileToggle, setupMobileKeyboardHandling, setupContentEditableScrolling } from './src/systems/ui/mobile.js';
 import { setupCollapseToggle, applyPanelPosition, updatePanelVisibility, updateGenerationModeUI } from './src/systems/ui/layout.js';
 
@@ -138,6 +142,33 @@ async function waitForRegistrationFunction({ maxAttempts = 300, delayMs = 100 } 
     throw new Error(`[Story Tracker] registerExtension not available after ${maxAttempts} attempts`);
 }
 
+let eventsRegistered = false;
+
+function registerEventHandlers() {
+    if (eventsRegistered) {
+        return;
+    }
+
+    const context = globalThis.SillyTavern?.getContext?.();
+    const eventTypes = context?.event_types;
+    const eventSource = context?.eventSource;
+
+    if (!eventSource || !eventTypes) {
+        console.warn('[Story Tracker] Event API unavailable; skipping event registration');
+        return;
+    }
+
+    registerAllEvents({
+        [eventTypes.MESSAGE_SENT]: onMessageSent,
+        [eventTypes.MESSAGE_RECEIVED]: onMessageReceived,
+        [eventTypes.GENERATION_STARTED]: onGenerationStarted,
+        [eventTypes.CHAT_CHANGED]: [onCharacterChanged, updatePersonaAvatar],
+        [eventTypes.MESSAGE_SWIPED]: onMessageSwiped
+    });
+
+    eventsRegistered = true;
+}
+
 let isExtensionInitialized = false;
 
 async function initializeExtension(root, html, base, { viaFallback = false } = {}) {
@@ -178,6 +209,8 @@ async function initializeExtension(root, html, base, { viaFallback = false } = {
     updatePanelVisibility();
     updateGenerationModeUI();
 
+    loadChatData();
+
     const hasSections = Array.isArray(extensionSettings.trackerData?.sections) && extensionSettings.trackerData.sections.length > 0;
     if (!hasSections) {
         try {
@@ -194,6 +227,7 @@ async function initializeExtension(root, html, base, { viaFallback = false } = {
     }
 
     renderTracker();
+    commitTrackerData();
 
     $root.find('#story-tracker-settings').on('click', () => showSettingsModal());
     $root.find('#story-tracker-manual-update').on('click', async () => {
@@ -202,6 +236,8 @@ async function initializeExtension(root, html, base, { viaFallback = false } = {
     $root.find('#edit-preset-prompt').on('click', () => {
         import(new URL('./src/core/presetManager.js', base)).then(module => module.showEditPromptModal());
     });
+
+    registerEventHandlers();
 
     isExtensionInitialized = true;
     console.log('[Story Tracker] initializeExtension completed', { viaFallback });

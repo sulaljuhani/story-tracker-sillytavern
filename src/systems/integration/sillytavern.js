@@ -3,55 +3,209 @@
  * Handles integration with SillyTavern's event system and UI
  */
 
-import { extensionSettings, setCommittedTrackerData, lastActionWasSwipe, setLastActionWasSwipe } from '../../core/state.js';
+import {
+    extensionSettings,
+    committedTrackerData,
+    lastGeneratedData,
+    setCommittedTrackerData,
+    setLastGeneratedData,
+    lastActionWasSwipe,
+    setLastActionWasSwipe
+} from '../../core/state.js';
 import { loadChatData, saveChatData } from '../../core/persistence.js';
 import { updateTrackerData } from '../generation/apiClient.js';
 import { renderTracker } from '../rendering/tracker.js';
+import { parseResponse } from '../generation/parser.js';
+
+const SWIPE_STORAGE_KEY = 'story_tracker_swipes';
+
+function getContext() {
+    return globalThis.SillyTavern?.getContext?.();
+}
+
+function cloneData(data) {
+    return data ? JSON.parse(JSON.stringify(data)) : null;
+}
+
+function getLastAssistantMessage(chat) {
+    if (!Array.isArray(chat)) {
+        return null;
+    }
+
+    for (let i = chat.length - 1; i >= 0; i -= 1) {
+        const message = chat[i];
+        if (message && !message.is_user) {
+            return message;
+        }
+    }
+
+    return null;
+}
+
+function resolvePromptApi() {
+    const context = getContext();
+    const setter = context?.setExtensionPrompt || globalThis.setExtensionPrompt;
+    const types = context?.extension_prompt_types || globalThis.extension_prompt_types;
+    return { setter, types };
+}
 
 /**
- * Handles message sent events
+ * Commits the tracker data from the most recent assistant message so that
+ * subsequent generations operate on the same baseline data as the current swipe.
  */
-export async function onMessageSent() {
-    setLastActionWasSwipe(false);
+export function commitTrackerData() {
+    const context = getContext();
+    const chat = context?.chat;
 
-    if (extensionSettings.autoUpdate) {
-        await updateTrackerData(renderTracker);
+    const lastAssistant = getLastAssistantMessage(chat);
+    if (!lastAssistant) {
+        return;
+    }
+
+    const swipeId = lastAssistant.swipe_id || 0;
+    const swipeData = lastAssistant.extra?.[SWIPE_STORAGE_KEY]?.[swipeId];
+    if (swipeData?.trackerData) {
+        const trackerClone = cloneData(swipeData.trackerData);
+        setCommittedTrackerData(trackerClone);
+        setLastGeneratedData(trackerClone);
     }
 }
 
 /**
- * Handles message received events
+ * Handles message sent events.
  */
-export async function onMessageReceived() {
-    // Nothing to do here for now
+export function onMessageSent() {
+    setLastActionWasSwipe(false);
+    commitTrackerData();
 }
 
 /**
- * Handles character change events
+ * Handles message received events.
+ * Parses tracker data in "together" mode or triggers a separate update.
+ */
+export async function onMessageReceived() {
+    if (!extensionSettings.enabled) {
+        return;
+    }
+
+    const context = getContext();
+    const chat = context?.chat;
+    if (!Array.isArray(chat) || chat.length === 0) {
+        return;
+    }
+
+    const lastMessage = chat[chat.length - 1];
+    if (!lastMessage || lastMessage.is_user) {
+        return;
+    }
+
+    if (extensionSettings.generationMode === 'together') {
+        const parsed = parseResponse(lastMessage.mes || '');
+
+        if (parsed.trackerData) {
+            const trackerClone = cloneData(parsed.trackerData);
+            setLastGeneratedData(trackerClone);
+            extensionSettings.trackerData = trackerClone;
+
+            const hasCommittedSections = Array.isArray(committedTrackerData?.sections) && committedTrackerData.sections.length > 0;
+            if (!hasCommittedSections) {
+                setCommittedTrackerData(trackerClone);
+            }
+
+            if (!lastMessage.extra) {
+                lastMessage.extra = {};
+            }
+            if (!lastMessage.extra[SWIPE_STORAGE_KEY]) {
+                lastMessage.extra[SWIPE_STORAGE_KEY] = {};
+            }
+
+            const swipeId = lastMessage.swipe_id || 0;
+            lastMessage.extra[SWIPE_STORAGE_KEY][swipeId] = {
+                trackerData: trackerClone
+            };
+
+            if (typeof parsed.cleanedText === 'string') {
+                lastMessage.mes = parsed.cleanedText;
+                if (lastMessage.swipes && lastMessage.swipes[swipeId] !== undefined) {
+                    lastMessage.swipes[swipeId] = parsed.cleanedText;
+                }
+            }
+
+            renderTracker();
+            saveChatData();
+        }
+    } else if (extensionSettings.generationMode === 'separate' && extensionSettings.autoUpdate) {
+        setTimeout(() => updateTrackerData(renderTracker), 500);
+    }
+
+    if (lastActionWasSwipe) {
+        setLastActionWasSwipe(false);
+    }
+}
+
+/**
+ * Handles character change events.
  */
 export function onCharacterChanged() {
     loadChatData();
     renderTracker();
+    commitTrackerData();
 }
 
 /**
- * Handles message swipe events
+ * Handles message swipe events to load the tracker data for the selected swipe.
+ * @param {number} messageIndex - Index of the message being swiped
  */
-export function onMessageSwiped() {
-    setLastActionWasSwipe(true);
-    // In a more complex implementation, we might load swipe-specific data here
+export function onMessageSwiped(messageIndex) {
+    if (!extensionSettings.enabled) {
+        return;
+    }
+
+    const context = getContext();
+    const chat = context?.chat;
+    if (!Array.isArray(chat) || !chat[messageIndex] || chat[messageIndex].is_user) {
+        return;
+    }
+
+    const message = chat[messageIndex];
+    const swipeId = message.swipe_id || 0;
+
+    const hasExistingSwipe = Boolean(
+        message.swipes &&
+        message.swipes[swipeId] !== undefined &&
+        message.swipes[swipeId] !== null &&
+        String(message.swipes[swipeId]).length > 0
+    );
+
+    if (!hasExistingSwipe) {
+        setLastActionWasSwipe(true);
+    }
+
+    const swipeData = message.extra?.[SWIPE_STORAGE_KEY]?.[swipeId];
+    if (swipeData?.trackerData) {
+        const trackerClone = cloneData(swipeData.trackerData);
+        setLastGeneratedData(trackerClone);
+        extensionSettings.trackerData = trackerClone;
+        renderTracker();
+    }
 }
 
 /**
- * Updates persona avatar display
+ * Updates persona avatar display (not used for this extension).
  */
 export function updatePersonaAvatar() {
-    // Not used by this extension, but good practice to have the handler
+    // Placeholder for compatibility with SillyTavern event system
 }
 
 /**
- * Clears extension prompts (for when extension is disabled)
+ * Clears extension prompts (used when the extension is disabled).
  */
 export function clearExtensionPrompts() {
-    // Not used by this extension, but good practice to have the handler
+    const { setter, types } = resolvePromptApi();
+    if (typeof setter !== 'function' || !types?.IN_CHAT) {
+        return;
+    }
+
+    setter('story-tracker-inject', '', types.IN_CHAT, 0, false);
+    setter('story-tracker-context', '', types.IN_CHAT, 1, false);
 }

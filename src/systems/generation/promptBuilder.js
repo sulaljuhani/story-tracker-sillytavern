@@ -10,27 +10,33 @@ import { extensionSettings, committedTrackerData } from '../../core/state.js';
 /** @typedef {import('../../types/tracker.js').TrackerField} TrackerField */
 
 /**
- * Generates the general instruction prompt that explains how the tracker works
+ * Generates the general instruction prompt that explains how the tracker works.
+ * @param {'together'|'separate'} mode - Generation mode to tailor instructions for
  * @returns {string} General instruction text
  */
-export function generateGeneralInstructions() {
-    return extensionSettings.systemPrompt || `You are managing a dynamic story tracker for the roleplay. The tracker contains various fields that track different aspects of the story and characters. Your task is to return a valid JSON object that represents the updated tracker data.`;
+export function generateGeneralInstructions(mode = 'separate') {
+    const basePrompt = extensionSettings.systemPrompt?.trim();
+    const defaultPrompt = 'You are managing a dynamic story tracker for the roleplay. The tracker contains various fields that track different aspects of the story and characters.';
+
+    let instructions = basePrompt || defaultPrompt;
+
+    if (mode === 'together') {
+        instructions += '\n\nAlways begin your reply with an updated tracker JSON block enclosed in ```json fences before continuing the narrative response. Maintain immersive storytelling after the code block.';
+    } else {
+        instructions += '\n\nReturn only the updated tracker data as a ```json code block with no additional narration. Ensure the block is valid JSON.';
+    }
+
+    return instructions.trim();
 }
 
-/**
- * Generates the complete prompt for tracker updates
- * @param {boolean} includeHistory - Whether to include chat history
- * @param {TrackerData} trackerData - Current tracker data
- * @returns {string} Complete prompt text
- */
 function convertTrackerForLLM(trackerData) {
     if (!trackerData) return {};
     const converted = JSON.parse(JSON.stringify(trackerData));
 
-    for (const section of converted.sections) {
-        for (const subsection of section.subsections) {
+    for (const section of converted.sections || []) {
+        for (const subsection of section.subsections || []) {
             const fieldsObject = {};
-            for (const field of subsection.fields) {
+            for (const field of subsection.fields || []) {
                 fieldsObject[field.name] = {
                     prompt: field.prompt || '',
                     value: field.value || ''
@@ -43,11 +49,20 @@ function convertTrackerForLLM(trackerData) {
     return converted;
 }
 
-export function generateTrackerPrompt(includeHistory = true, trackerData = null) {
+/**
+ * Generates the complete prompt for tracker updates.
+ *
+ * @param {boolean} includeHistory - Whether to include chat history
+ * @param {TrackerData|null} trackerData - Current tracker data override
+ * @param {{ includeNarrative?: boolean }} [options] - Additional prompt options
+ * @returns {string} Complete prompt text
+ */
+export function generateTrackerPrompt(includeHistory = true, trackerData = null, options = {}) {
+    const { includeNarrative = false } = options;
     const data = trackerData || committedTrackerData;
     const trackerForLLM = convertTrackerForLLM(data);
 
-    let prompt = generateGeneralInstructions();
+    let prompt = generateGeneralInstructions(includeNarrative ? 'together' : 'separate');
     prompt += '\n\n';
 
     if (includeHistory) {
@@ -70,8 +85,15 @@ export function generateTrackerPrompt(includeHistory = true, trackerData = null)
 
     prompt += 'Instructions:\n';
     prompt += '- Each field has a "prompt" (what to track) and a "value" (current state).\n';
-    prompt += '- Update the "value" of each field based on the recent events, while respecting the "prompt".\n';
-    prompt += '- Return the complete, updated tracker data as a single JSON object inside a ```json code block.\n';
+    prompt += '- Update the "value" of each field based on the recent events while respecting the "prompt".\n';
+
+    if (includeNarrative) {
+        prompt += '- Begin your reply with the updated tracker data inside a ```json code block before any narrative text.\n';
+        prompt += '- Immediately after the code block, continue the narrative so that it reflects the tracker changes.\n';
+    } else {
+        prompt += '- Return only the updated tracker data as a ```json code block with no additional prose.\n';
+    }
+
     prompt += '- Ensure the returned JSON has the same structure as the one provided.';
 
     return prompt;
@@ -84,19 +106,14 @@ export function generateTrackerPrompt(includeHistory = true, trackerData = null)
 export function generateSeparateUpdatePrompt() {
     const messages = [];
 
-    // System message
-    let systemMessage = generateGeneralInstructions();
     messages.push({
         role: 'system',
-        content: systemMessage
+        content: generateGeneralInstructions('separate')
     });
-
-    // Instruction message
-    const instructionMessage = generateTrackerPrompt(true);
 
     messages.push({
         role: 'user',
-        content: instructionMessage
+        content: generateTrackerPrompt(true, null, { includeNarrative: false })
     });
 
     return messages;

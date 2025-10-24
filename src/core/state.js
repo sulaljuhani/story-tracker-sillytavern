@@ -58,26 +58,28 @@ export function updateExtensionSettings(updates) {
 }
 
 export function setLastGeneratedData(data) {
-    lastGeneratedData = data ? { ...data } : null;
+    lastGeneratedData = data ? JSON.parse(JSON.stringify(data)) : null;
 }
 
 export function updateLastGeneratedData(updates) {
     if (lastGeneratedData) {
-        lastGeneratedData = { ...lastGeneratedData, ...updates };
+        const merged = { ...lastGeneratedData, ...updates };
+        lastGeneratedData = JSON.parse(JSON.stringify(merged));
     } else {
-        lastGeneratedData = { ...updates };
+        lastGeneratedData = JSON.parse(JSON.stringify(updates));
     }
 }
 
 export function setCommittedTrackerData(data) {
-    committedTrackerData = data ? { ...data } : null;
+    committedTrackerData = data ? JSON.parse(JSON.stringify(data)) : null;
 }
 
 export function updateCommittedTrackerData(updates) {
     if (committedTrackerData) {
-        committedTrackerData = { ...committedTrackerData, ...updates };
+        const merged = { ...committedTrackerData, ...updates };
+        committedTrackerData = JSON.parse(JSON.stringify(merged));
     } else {
-        committedTrackerData = { ...updates };
+        committedTrackerData = JSON.parse(JSON.stringify(updates));
     }
 }
 

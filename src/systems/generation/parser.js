@@ -4,44 +4,49 @@
  */
 
 import { extensionSettings } from '../../core/state.js';
-import { saveSettings } from '../../core/persistence.js';
 
 /**
- * Parses the model response to extract the different data sections.
- * Extracts tracker data from markdown code blocks in the AI response.
- *
- * @param {string} responseText - The raw AI response text
- * @returns {{trackerData: object|null, html: string|null}} Parsed data
+ * Reconstructs tracker data returned by the LLM using the existing template
+ * so that optional fields keep their previous values when omitted.
  */
 function restoreTrackerFromLLM(parsedData) {
     if (!parsedData || !Array.isArray(parsedData.sections)) {
         return null;
     }
 
-    const originalData = JSON.parse(JSON.stringify(extensionSettings.trackerData));
+    const originalData = JSON.parse(JSON.stringify(extensionSettings.trackerData || { sections: [] }));
+    if (!Array.isArray(originalData.sections)) {
+        return null;
+    }
 
     const restoredSections = [];
 
     for (const originalSection of originalData.sections) {
-        const parsedSection = parsedData.sections.find(s => s.name === originalSection.name);
-        if (!parsedSection) continue;
+        const parsedSection = parsedData.sections.find((section) => section.name === originalSection.name);
+        if (!parsedSection) {
+            continue;
+        }
 
         const restoredSubsections = [];
-        for (const originalSubsection of originalSection.subsections) {
-            const parsedSubsection = parsedSection.subsections.find(ss => ss.name === originalSubsection.name);
-            if (!parsedSubsection) continue;
+        for (const originalSubsection of originalSection.subsections || []) {
+            const parsedSubsection = parsedSection.subsections?.find((subsection) => subsection.name === originalSubsection.name);
+            if (!parsedSubsection) {
+                continue;
+            }
 
             const restoredFields = [];
-            for (const originalField of originalSubsection.fields) {
-                const parsedFieldData = parsedSubsection.fields[originalField.name];
+            for (const originalField of originalSubsection.fields || []) {
+                const parsedFieldData = parsedSubsection.fields?.[originalField.name];
                 if (parsedFieldData) {
-                    originalField.value = parsedFieldData.value || originalField.value;
+                    originalField.value = parsedFieldData.value ?? originalField.value;
                 }
                 restoredFields.push(originalField);
             }
+
             originalSubsection.fields = restoredFields;
             restoredSubsections.push(originalSubsection);
         }
+
         originalSection.subsections = restoredSubsections;
         restoredSections.push(originalSection);
     }
@@ -49,34 +54,64 @@ function restoreTrackerFromLLM(parsedData) {
     return { sections: restoredSections };
 }
 
+const HTML_REGEX = /(<div[^>]*>[\s\S]*?<\/div>|<style[^>]*>[\s\S]*?<\/style>|<script[^>]*>[\s\S]*?<\/script>)/gi;
+const CODE_BLOCK_REGEX = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
+const MULTI_NEWLINE_REGEX = /\n{3,}/g;
+
+/**
+ * Parses the model response to extract tracker data and cleaned narrative text.
+ *
+ * @param {string} responseText - The raw AI response text
+ * @returns {{ trackerData: object|null, html: string|null, cleanedText: string }} Parsed data
+ */
 export function parseResponse(responseText) {
+    const originalText = typeof responseText === 'string' ? responseText : '';
+    let workingText = originalText;
+
     const result = {
         trackerData: null,
-        html: null
+        html: null,
+        cleanedText: originalText.trim()
     };
 
-    const htmlRegex = /(<div[^>]*>[\s\S]*?<\/div>|<style[^>]*>[\s\S]*?<\/style>|<script[^>]*>[\s\S]*?<\/script>)/gi;
-    const htmlMatches = responseText.match(htmlRegex);
-    if (htmlMatches) {
+    const htmlMatches = workingText.match(HTML_REGEX);
+    if (htmlMatches && htmlMatches.length > 0) {
         result.html = htmlMatches.join('\n');
-        responseText = responseText.replace(htmlRegex, '');
+        workingText = workingText.replace(HTML_REGEX, '');
     }
 
-    const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
-    let match;
-    const matches = [];
-    while ((match = codeBlockRegex.exec(responseText)) !== null) {
-        matches.push(match[1]);
-    }
+    const codeBlocks = [...workingText.matchAll(CODE_BLOCK_REGEX)];
+    let removalBounds = null;
 
-    if (matches.length > 0) {
+    for (const match of codeBlocks) {
+        const [fullMatch, captured] = match;
+        if (!captured) {
+            continue;
+        }
+
+        const trimmed = captured.trim();
         try {
-            const parsedData = JSON.parse(matches[0]);
-            result.trackerData = restoreTrackerFromLLM(parsedData);
+            const parsedData = JSON.parse(trimmed);
+            const restored = restoreTrackerFromLLM(parsedData);
+            if (restored) {
+                result.trackerData = restored;
+                removalBounds = {
+                    start: match.index,
+                    end: match.index + fullMatch.length
+                };
+                break;
+            }
         } catch (error) {
-            console.error('[Story Tracker] Error parsing tracker data from code block:', error);
+            // Ignore parsing errors for non-JSON code blocks; try next block
+            continue;
         }
     }
+
+    if (removalBounds) {
+        workingText = workingText.slice(0, removalBounds.start) + workingText.slice(removalBounds.end);
+    }
+
+    result.cleanedText = workingText.replace(MULTI_NEWLINE_REGEX, '\n\n').trim();
 
     return result;
 }
