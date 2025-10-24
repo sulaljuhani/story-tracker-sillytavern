@@ -2,6 +2,7 @@ sections:
   - id: section_story_overview
     name: Story Overview
     collapsed: false
+    fields: []
     subsections:
       - id: subsection_main_plot
         name: Main Plot
@@ -38,6 +39,7 @@ sections:
   - id: section_characters
     name: Characters
     collapsed: false
+    fields: []
     subsections:
       - id: subsection_protagonist
         name: Protagonist
