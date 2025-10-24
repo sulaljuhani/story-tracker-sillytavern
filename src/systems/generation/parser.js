@@ -24,6 +24,7 @@ function restoreTrackerFromLLM(parsedData) {
     for (const originalSection of originalData.sections) {
         const parsedSection = parsedData.sections.find((section) => section.name === originalSection.name);
         if (!parsedSection) {
+            restoredSections.push(originalSection);
             continue;
         }
 
@@ -40,6 +41,7 @@ function restoreTrackerFromLLM(parsedData) {
         for (const originalSubsection of originalSection.subsections || []) {
             const parsedSubsection = parsedSection.subsections?.find((subsection) => subsection.name === originalSubsection.name);
             if (!parsedSubsection) {
+                restoredSubsections.push(originalSubsection);
                 continue;
             }
 

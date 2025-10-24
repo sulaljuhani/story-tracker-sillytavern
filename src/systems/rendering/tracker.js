@@ -4,6 +4,7 @@
  */
 
 import { extensionSettings, $sectionsContainer, createSection, createSubsection, createField, syncTrackerBaselines } from '../../core/state.js';
+import { escapeHtml } from '../../core/sanitize.js';
 import { saveSettings, saveChatData } from '../../core/persistence.js';
 
 // Type imports
@@ -90,7 +91,7 @@ export function renderSection(section) {
                 <div class="story-tracker-section-toggle">
                     <i class="fa-solid fa-chevron-down"></i>
                 </div>
-                <div class="story-tracker-section-title" contenteditable="true" data-section-id="${section.id}">${section.name}</div>
+                <div class="story-tracker-section-title" contenteditable="true" data-section-id="${section.id}">${escapeHtml(section.name)}</div>
                 <div class="story-tracker-section-actions">
                     <button class="story-tracker-btn story-tracker-btn-small" data-action="add-subsection" data-section-id="${section.id}" title="Add Subsection">
                         <i class="fa-solid fa-folder-plus"></i>
@@ -126,7 +127,7 @@ export function renderSubsection(subsection) {
                 <div class="story-tracker-subsection-toggle">
                     <i class="fa-solid fa-chevron-right"></i>
                 </div>
-                <div class="story-tracker-subsection-title" contenteditable="true" data-subsection-id="${subsection.id}">${subsection.name}</div>
+                <div class="story-tracker-subsection-title" contenteditable="true" data-subsection-id="${subsection.id}">${escapeHtml(subsection.name)}</div>
                 <div class="story-tracker-subsection-actions">
                     <button class="story-tracker-btn story-tracker-btn-small" data-action="add-field" data-subsection-id="${subsection.id}" title="Add Field">
                         <i class="fa-solid fa-plus"></i>
@@ -155,8 +156,8 @@ export function renderField(field) {
 
     return `
         <div class="story-tracker-field ${enabledClass}" data-field-id="${field.id}" draggable="true">
-            <div class="story-tracker-field-name">${field.name}:</div>
-            <div class="story-tracker-field-value">${displayValue}</div>
+            <div class="story-tracker-field-name">${escapeHtml(field.name)}:</div>
+            <div class="story-tracker-field-value">${escapeHtml(displayValue)}</div>
             <div class="story-tracker-field-actions">
                 <button class="story-tracker-btn story-tracker-btn-small" data-action="edit-field" data-field-id="${field.id}" title="Edit Story Element">
                     <i class="fa-solid fa-edit"></i>
