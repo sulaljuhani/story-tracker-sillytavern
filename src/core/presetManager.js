@@ -1,6 +1,12 @@
 import { extensionSettings, updateExtensionSettings } from './state.js';
-import { saveSettings, deepClone } from './persistence.js';
-import { renderTracker } from '../systems/rendering/tracker.js';
+import { saveSettings, saveChatData, deepClone } from './persistence.js';
+import { renderTracker as renderTrackerImplementation } from '../systems/rendering/tracker.js';
+
+let renderTrackerHandler = renderTrackerImplementation;
+
+export function setRenderTrackerHandler(handler) {
+    renderTrackerHandler = typeof handler === 'function' ? handler : renderTrackerImplementation;
+}
 
 const PRESET_STORAGE_KEY = 'story-tracker-presets';
 
@@ -41,8 +47,9 @@ export function loadPreset(name) {
             trackerData: deepClone(presets[name].trackerData),
             currentPreset: name,
         });
+        saveChatData();
         saveSettings();
-        renderTracker();
+        renderTrackerHandler();
     }
 }
 
