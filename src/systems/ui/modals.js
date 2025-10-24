@@ -17,7 +17,7 @@ import {
     setTrackerDataFormat,
     DEFAULT_PRESET_NAME,
 } from '../../core/dataManager.js';
-import { syncPresetSelection } from '../../core/presetManager.js';
+import { initializePresetActions, syncPresetSelection } from '../../core/presetManager.js';
 import { serializeTrackerData, parseTrackerData, FORMAT_JSON } from '../../core/serialization.js';
 
 const FORMAT_YAML = 'yaml';
@@ -721,6 +721,7 @@ export function showSettingsModal() {
     initializeSettingsTabs(modalBody);
     initializeGeneralSettings(modalBody);
     initializeDataManager(modalBody, activeFormat);
+    initializePresetActions(modalBody);
 
     openSettingsPopup();
 }
