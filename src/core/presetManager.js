@@ -143,7 +143,8 @@ export function initializePresetActions(modalBody = $('#story-tracker-settings-m
         const selectedPreset = $('#story-tracker-preset-select').val();
         if (selectedPreset && confirm(`Are you sure you want to delete the "${selectedPreset}" preset?`)) {
             deletePreset(selectedPreset);
-            $('#story-tracker-preset-select').val('');
+            syncPresetSelection('');
+            saveSettings();
         }
     });
 }
