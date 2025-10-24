@@ -69,13 +69,17 @@ export function generateTrackerPrompt(includeHistory = true, trackerData = null,
         prompt += 'Recent chat history for context:\n';
         const depth = extensionSettings.updateDepth;
         const st = SillyTavern.getContext();
-        const recentMessages = st.chat.slice(-depth);
+        if (st?.chat) {
+            const recentMessages = st.chat.slice(-depth);
 
-        for (const message of recentMessages) {
-            const role = message.is_user ? 'User' : 'Assistant';
-            prompt += `${role}: ${message.mes}\n`;
+            for (const message of recentMessages) {
+                const role = message.is_user ? 'User' : 'Assistant';
+                prompt += `${role}: ${message.mes}\n`;
+            }
+            prompt += '\n';
+        } else {
+            console.warn('[Story Tracker] SillyTavern chat context not available for prompt building.');
         }
-        prompt += '\n';
     }
 
     prompt += 'Current tracker state:\n';

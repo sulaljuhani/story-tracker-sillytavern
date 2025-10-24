@@ -12,7 +12,7 @@ import {
     setCommittedTrackerData
 } from './state.js';
 
-const extensionName = 'story-tracker';
+const extensionName = 'story-tracker-sillytavern';
 const CHAT_METADATA_KEY = 'story_tracker';
 const SWIPE_STORAGE_KEY = 'story_tracker_swipes';
 

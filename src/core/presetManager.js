@@ -1,5 +1,5 @@
 import { extensionSettings, updateExtensionSettings } from './state.js';
-import { saveSettings } from './persistence.js';
+import { saveSettings, deepClone } from './persistence.js';
 import { renderTracker } from '../systems/rendering/tracker.js';
 
 const PRESET_STORAGE_KEY = 'story-tracker-presets';
@@ -27,7 +27,7 @@ export function saveCurrentPreset(name) {
     const presets = getPresets();
     presets[name] = {
         systemPrompt: extensionSettings.systemPrompt || '',
-        trackerData: extensionSettings.trackerData,
+        trackerData: deepClone(extensionSettings.trackerData),
     };
     savePresets(presets);
     populatePresetDropdown();
@@ -38,7 +38,7 @@ export function loadPreset(name) {
     if (presets[name]) {
         updateExtensionSettings({
             systemPrompt: presets[name].systemPrompt,
-            trackerData: presets[name].trackerData,
+            trackerData: deepClone(presets[name].trackerData),
             currentPreset: name,
         });
         saveSettings();

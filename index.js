@@ -182,7 +182,8 @@ async function initializeExtension(root, html, base, { viaFallback = false } = {
         throw new Error('[Story Tracker] Cannot initialize – SillyTavern context unavailable');
     }
 
-    root.innerHTML = html;
+    const processedHtml = html.replace(/{{EXTENSION_ASSETS_BASE_PATH}}/g, base.href.replace(/\/$/, ''));
+    root.innerHTML = processedHtml;
     const $root = $(root);
 
     const panelElement = root.querySelector('#story-tracker-panel');

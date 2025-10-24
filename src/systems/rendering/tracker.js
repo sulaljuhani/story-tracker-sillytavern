@@ -79,8 +79,8 @@ export function renderTracker() {
 export function renderSection(section) {
     const collapsedClass = section.collapsed ? 'collapsed' : '';
     const fieldsHtml = (section.fields || []).map(field => renderField(field)).join('');
-    const subsectionsHtml = (section.subsections || []).map(subsection => renderSection(subsection)).join('');
-    const contentHtml = fieldsHtml + subsectionsHtml || '<div class="story-tracker-empty">No story elements yet. Click the plus button to add one.</div>';
+    const subsectionsHtml = (section.subsections || []).map(subsection => renderSubsection(subsection)).join('');
+    const contentHtml = (fieldsHtml || subsectionsHtml) ? (fieldsHtml + subsectionsHtml) : '<div class="story-tracker-empty">No story elements yet. Click the plus button to add one.</div>';
 
     return `
         <div class="story-tracker-section" data-section-id="${section.id}">
@@ -88,10 +88,16 @@ export function renderSection(section) {
                 <div class="story-tracker-section-toggle">
                     <i class="fa-solid fa-chevron-down"></i>
                 </div>
-                <div class="story-tracker-section-title" data-section-id="${section.id}">${section.name}</div>
+                <div class="story-tracker-section-title" contenteditable="true" data-section-id="${section.id}">${section.name}</div>
                 <div class="story-tracker-section-actions">
+                    <button class="story-tracker-btn story-tracker-btn-small" data-action="add-subsection" data-section-id="${section.id}" title="Add Subsection">
+                        <i class="fa-solid fa-folder-plus"></i>
+                    </button>
                     <button class="story-tracker-btn story-tracker-btn-small" data-action="add-field" data-section-id="${section.id}" title="Add Story Element">
                         <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <button class="story-tracker-btn story-tracker-btn-small story-tracker-btn-danger" data-action="delete-section" data-section-id="${section.id}" title="Delete Section">
+                        <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
             </div>
@@ -203,7 +209,34 @@ function attachSectionEventListeners() {
  * Attaches event listeners for subsection interactions
  */
 function attachSubsectionEventListeners() {
-    // This function is now empty as subsections are removed
+    // Subsection toggle collapse/expand
+    $('.story-tracker-subsection-header').off('click').on('click', function(event) {
+        if (isInteractiveElement(event.target)) {
+            return;
+        }
+        const $subsection = $(this).closest('.story-tracker-subsection');
+        const subsectionId = $subsection.data('subsection-id');
+        toggleSubsectionCollapse(subsectionId);
+    });
+
+    // Subsection title editing
+    $('.story-tracker-subsection-title').off('blur').on('blur', function() {
+        const subsectionId = $(this).data('subsection-id');
+        const newName = $(this).text().trim();
+        updateSubsectionName(subsectionId, newName);
+    });
+
+    // Add field button for subsections
+    $('[data-action="add-field"][data-subsection-id]').off('click').on('click', function() {
+        const subsectionId = $(this).data('subsection-id');
+        showAddFieldModal(subsectionId);
+    });
+
+    // Delete subsection button
+    $('[data-action="delete-subsection"]').off('click').on('click', function() {
+        const subsectionId = $(this).data('subsection-id');
+        deleteSubsection(subsectionId);
+    });
 }
 
 /**
@@ -624,7 +657,18 @@ function updateSubsectionName(subsectionId, newName) {
 }
 
 function deleteSubsection(subsectionId) {
-    // This function is now empty as subsections are removed
+    if (!confirm('Are you sure you want to delete this subsection and all its contents?')) {
+        return;
+    }
+
+    for (const section of extensionSettings.trackerData.sections) {
+        section.subsections = (section.subsections || []).filter(
+            subsection => subsection.id !== subsectionId
+        );
+    }
+    saveSettings();
+    saveChatData();
+    renderTracker();
 }
 
 /**
@@ -678,22 +722,34 @@ function deleteField(fieldId) {
         return;
     }
 
+    // Iterate through sections to find and delete the field
     for (const section of extensionSettings.trackerData.sections) {
-        section.fields = (section.fields || []).filter(
-            field => field.id !== fieldId
-        );
+        // Check fields directly in the section
+        const initialSectionFieldCount = section.fields ? section.fields.length : 0;
+        section.fields = (section.fields || []).filter(field => field.id !== fieldId);
+        if (section.fields.length < initialSectionFieldCount) {
+            // Field found and deleted from section
+            saveSettings();
+            saveChatData();
+            renderTracker();
+            return;
+        }
 
+        // Check fields within subsections of the current section
         if (section.subsections) {
             for (const subsection of section.subsections) {
-                subsection.fields = (subsection.fields || []).filter(
-                    field => field.id !== fieldId
-                );
+                const initialSubsectionFieldCount = subsection.fields ? subsection.fields.length : 0;
+                subsection.fields = (subsection.fields || []).filter(field => field.id !== fieldId);
+                if (subsection.fields.length < initialSubsectionFieldCount) {
+                    // Field found and deleted from subsection
+                    saveSettings();
+                    saveChatData();
+                    renderTracker();
+                    return;
+                }
             }
         }
     }
-    saveSettings();
-    saveChatData();
-    renderTracker();
 }
 
 
@@ -740,25 +796,49 @@ export function addSection(name) {
 }
 
 export function addSubsection(sectionId, name) {
-    // This function is now empty as subsections are removed
-}
-
-export function addField(sectionId, name, type = 'text', prompt = '') {
     ensureTrackerData();
     const section = findSectionById(sectionId);
     if (!section) {
-        console.warn('[Story Tracker] addField: Section not found', sectionId);
+        console.warn('[Story Tracker] addSubsection: Section not found', sectionId);
         return null;
     }
 
-    if (!Array.isArray(section.fields)) {
-        section.fields = [];
+    if (!Array.isArray(section.subsections)) {
+        section.subsections = [];
+    }
+
+    const subsectionName = (typeof name === 'string' && name.trim()) ? name.trim() : 'New Subsection';
+    const subsection = createSubsection(subsectionName);
+    section.subsections.push(subsection);
+    saveSettings();
+    saveChatData();
+    renderTracker();
+    return subsection.id;
+}
+
+export function addField(parentId, name, type = 'text', prompt = '') {
+    ensureTrackerData();
+    let parent = findSectionById(parentId);
+    let isSubsection = false;
+
+    if (!parent) {
+        parent = findSubsectionById(parentId);
+        isSubsection = true;
+    }
+
+    if (!parent) {
+        console.warn('[Story Tracker] addField: Parent (section or subsection) not found', parentId);
+        return null;
+    }
+
+    if (!Array.isArray(parent.fields)) {
+        parent.fields = [];
     }
 
     const fieldName = (typeof name === 'string' && name.trim()) ? name.trim() : 'New Story Element';
     const fieldType = type || 'text';
     const field = createField(fieldName, prompt, fieldType);
-    section.fields.push(field);
+    parent.fields.push(field);
     saveSettings();
     saveChatData();
     renderTracker();
@@ -769,13 +849,15 @@ export function addField(sectionId, name, type = 'text', prompt = '') {
  * Modal functions (placeholders - will be implemented in UI module)
  */
 
-function showAddSubsectionModal(sectionId) {
-    // This function is now empty as subsections are removed
+export function showAddSubsectionModal(sectionId) {
+    import('../ui/modals.js').then(module => {
+        module.showAddSubsectionModal(sectionId);
+    });
 }
 
-function showAddFieldModal(subsectionId) {
+export function showAddFieldModal(parentId) {
     import('../ui/modals.js').then(module => {
-        module.showAddFieldModal(subsectionId);
+        module.showAddFieldModal(parentId);
     });
 }
 

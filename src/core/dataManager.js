@@ -2,7 +2,6 @@
  * Tracker data management utilities
  */
 
-import { extensionAssetsBasePath } from './config.js';
 import { extensionSettings } from './state.js';
 import { saveSettings, saveChatData } from './persistence.js';
 import {
@@ -73,7 +72,7 @@ export function updateTrackerData(data, options = {}) {
 }
 
 export function setTrackerDataFormat(format) {
-    extensionSettings.dataFormat = FORMAT_JSON;
+    extensionSettings.dataFormat = format;
     saveSettings();
 }
 
