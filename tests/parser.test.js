@@ -309,3 +309,46 @@ test('parseResponse accepts direct scalar field values from the model', () => {
     assert.ok(trackerData, 'Expected tracker data to be parsed');
     assert.equal(trackerData.sections[0].fields[0].value, updatedValue);
 });
+
+test('parseResponse extracts tracker data nested under tracker key', () => {
+    const originalTracker = {
+        sections: [
+            {
+                id: 'section-1',
+                name: 'Overview',
+                fields: [buildSectionField('Summary', 'Old summary', 'Keep a short summary')],
+                subsections: [],
+                collapsed: false
+            }
+        ]
+    };
+
+    setExtensionSettings({
+        ...defaultSettings,
+        trackerData: JSON.parse(JSON.stringify(originalTracker))
+    });
+
+    const updatedValue = 'Nested tracker summary';
+    const updatedSnippet = {
+        tracker: {
+            sections: [
+                {
+                    name: 'Overview',
+                    fields: {
+                        Summary: {
+                            prompt: 'Keep a short summary',
+                            value: updatedValue
+                        }
+                    }
+                }
+            ]
+        }
+    };
+
+    const responseText = `Tracker update incoming.\n\n\`\`\`json\n${JSON.stringify(updatedSnippet, null, 2)}\n\`\`\`\n`;
+
+    const { trackerData } = parseResponse(responseText);
+
+    assert.ok(trackerData, 'Expected tracker data to be parsed');
+    assert.equal(trackerData.sections[0].fields[0].value, updatedValue);
+});
