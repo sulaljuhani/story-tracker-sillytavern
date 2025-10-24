@@ -11,7 +11,8 @@ import { saveSettings, saveChatData } from '../../core/persistence.js';
 /** @typedef {import('../../types/tracker.js').TrackerSubsection} TrackerSubsection */
 /** @typedef {import('../../types/tracker.js').TrackerField} TrackerField */
 
-const sortableModuleUrl = new URL('../../lib/sortable.min.js', import.meta.url);
+const sortableScriptUrl = new URL('../../lib/sortable.min.js', import.meta.url).toString();
+const SORTABLE_SCRIPT_ATTR = 'data-story-tracker-sortable';
 let sortableLoadPromise = null;
 
 function loadSortableLibrary() {
@@ -20,37 +21,54 @@ function loadSortableLibrary() {
     }
 
     if (!sortableLoadPromise) {
-        sortableLoadPromise = import(sortableModuleUrl)
-            .then(module => {
-                const candidates = [module?.default, module?.Sortable, module];
+        sortableLoadPromise = new Promise((resolve, reject) => {
+            if (typeof Sortable !== 'undefined') {
+                resolve(Sortable);
+                return;
+            }
 
-                for (const candidate of candidates) {
-                    if (typeof candidate === 'function' && typeof candidate.create === 'function') {
-                        if (typeof globalThis.Sortable === 'undefined') {
-                            globalThis.Sortable = candidate;
-                        }
-                        return candidate;
-                    }
+            const existingScript = document.querySelector(`script[${SORTABLE_SCRIPT_ATTR}]`);
+            const scriptEl = existingScript || document.createElement('script');
 
-                    if (candidate && typeof candidate.Sortable === 'function' && typeof candidate.Sortable.create === 'function') {
-                        if (typeof globalThis.Sortable === 'undefined') {
-                            globalThis.Sortable = candidate.Sortable;
-                        }
-                        return candidate.Sortable;
-                    }
-                }
-
-                throw new Error('Sortable module did not expose a usable create function');
-            })
-            .catch(error => {
+            const handleError = () => {
+                scriptEl.removeEventListener('load', handleLoad);
+                const error = new Error('Failed to load Sortable library');
                 console.warn('[Story Tracker] Failed to load Sortable library', error);
                 sortableLoadPromise = null;
-                throw error;
-            });
+                reject(error);
+            };
+
+            const handleLoad = () => {
+                scriptEl.removeEventListener('error', handleError);
+                scriptEl.dataset.storyTrackerSortableLoaded = 'true';
+                if (typeof Sortable === 'undefined') {
+                    const error = new Error('Sortable not found after script load');
+                    console.warn('[Story Tracker] Sortable library did not define a global', error);
+                    sortableLoadPromise = null;
+                    reject(error);
+                    return;
+                }
+                resolve(Sortable);
+            };
+
+            scriptEl.addEventListener('load', handleLoad, { once: true });
+            scriptEl.addEventListener('error', handleError, { once: true });
+
+            if (!existingScript) {
+                scriptEl.async = true;
+                scriptEl.src = sortableScriptUrl;
+                scriptEl.setAttribute(SORTABLE_SCRIPT_ATTR, '1');
+                (document.head || document.body || document.documentElement).appendChild(scriptEl);
+            } else if (!existingScript.hasAttribute(SORTABLE_SCRIPT_ATTR)) {
+                existingScript.setAttribute(SORTABLE_SCRIPT_ATTR, '1');
+            }
+        });
     }
 
     return sortableLoadPromise;
 }
+
+
 
 /**
  * Renders the complete tracker UI
