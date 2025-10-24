@@ -12,6 +12,7 @@ import {
     setCommittedTrackerData
 } from '../../core/state.js';
 import { generateTrackerPrompt } from './promptBuilder.js';
+import { resolvePromptApi, callSetExtensionPrompt } from '../../utils/promptApi.js';
 
 const PROMPT_IDS = {
     INSTRUCTIONS: 'story-tracker-inject',

@@ -17,12 +17,13 @@ import { updateTrackerData } from '../generation/apiClient.js';
 import { renderTracker } from '../rendering/tracker.js';
 import { parseResponse } from '../generation/parser.js';
 import { onGenerationStarted } from '../generation/injector.js';
+import {
+    getSillyTavernContext,
+    resolvePromptApi,
+    callSetExtensionPrompt
+} from '../../utils/promptApi.js';
 
 const SWIPE_STORAGE_KEY = 'story_tracker_swipes';
-
-function getContext() {
-    return globalThis.SillyTavern?.getContext?.();
-}
 
 function cloneData(data) {
     return data ? JSON.parse(JSON.stringify(data)) : null;
@@ -88,7 +89,7 @@ function callSetExtensionPrompt(setter, id, value, type, priority = 0, shouldApp
  * subsequent generations operate on the same baseline data as the current swipe.
  */
 export function commitTrackerData() {
-    const context = getContext();
+    const context = getSillyTavernContext();
     const chat = context?.chat;
 
     const lastAssistant = getLastAssistantMessage(chat);
@@ -132,7 +133,7 @@ export async function onMessageReceived() {
         return;
     }
 
-    const context = getContext();
+    const context = getSillyTavernContext();
     const chat = context?.chat;
     if (!Array.isArray(chat) || chat.length === 0) {
         console.log('[Story Tracker DEBUG] No chat messages');
@@ -220,7 +221,7 @@ export function onMessageSwiped(messageIndex) {
         return;
     }
 
-    const context = getContext();
+    const context = getSillyTavernContext();
     const chat = context?.chat;
     if (!Array.isArray(chat) || !chat[messageIndex] || chat[messageIndex].is_user) {
         return;
