@@ -48,6 +48,8 @@ function getLastAssistantMessage(chat) {
     return null;
 }
 
+const FALLBACK_PROMPT_TYPES = { IN_CHAT: 'in_chat' };
+
 function resolvePromptApi() {
     const context = getContext();
     const setter = context?.setExtensionPrompt || globalThis.setExtensionPrompt;
