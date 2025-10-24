@@ -293,9 +293,52 @@ async function initializeExtension(root, html, base, { viaFallback = false } = {
     $root.find('#story-tracker-manual-update').on('click', async () => {
         await updateTrackerData(renderTracker);
     });
+    const presetModuleUrl = new URL('./src/core/presetManager.js', base);
+    const getPresetModule = () => import(presetModuleUrl);
+    const $presetUploadInput = $root.find('#story-tracker-preset-upload-input');
     $root.find('#edit-preset-prompt').on('click', () => {
-        import(new URL('./src/core/presetManager.js', base)).then(module => module.showEditPromptModal());
+        getPresetModule().then(module => module.showEditPromptModal());
     });
+    $root.find('#story-tracker-save-preset').on('click', () => {
+        getPresetModule().then(module => module.savePresetFromToolbar?.());
+    });
+    $root.find('#story-tracker-download-preset').on('click', () => {
+        getPresetModule().then(module => module.exportPresetFromToolbar?.());
+    });
+    $root.find('#story-tracker-upload-preset').on('click', () => {
+        if ($presetUploadInput && typeof $presetUploadInput.trigger === 'function') {
+            $presetUploadInput.trigger('click');
+        }
+    });
+    if ($presetUploadInput && $presetUploadInput.length) {
+        $presetUploadInput.on('change', event => {
+            const file = event.target?.files?.[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async loadEvent => {
+                try {
+                    const text = String(loadEvent.target?.result || '');
+                    const module = await getPresetModule();
+                    await module.importPresetFromText?.(text);
+                } catch (error) {
+                    console.error('[Story Tracker] Failed to import preset file', error);
+                } finally {
+                    $presetUploadInput.val('');
+                }
+            };
+            reader.onerror = error => {
+                console.error('[Story Tracker] Failed to read preset file', error);
+                if (typeof window !== 'undefined' && window.toastr) {
+                    window.toastr.error('Failed to read preset file.', 'Story Tracker');
+                }
+                $presetUploadInput.val('');
+            };
+            reader.readAsText(file);
+        });
+    }
 
     bindAddSectionButton({ $root, root });
 
