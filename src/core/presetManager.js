@@ -21,16 +21,52 @@ function notify(message, type = 'success') {
     }
 }
 
+function getUrlApi() {
+    if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+        return URL;
+    }
+
+    const globalUrl = globalThis?.URL;
+    if (globalUrl && typeof globalUrl.createObjectURL === 'function') {
+        return globalUrl;
+    }
+
+    return null;
+}
+
 function downloadSerialized(text, filename = DEFAULT_PRESET_FILENAME) {
+    const doc = typeof document !== 'undefined' ? document : null;
+    if (!doc || typeof doc.createElement !== 'function') {
+        throw new Error('Preset export is only supported when a document is available.');
+    }
+
+    if (!doc.body || typeof doc.body.appendChild !== 'function' || typeof doc.body.removeChild !== 'function') {
+        throw new Error('Preset export requires access to the document body.');
+    }
+
+    if (typeof Blob === 'undefined') {
+        throw new Error('Preset export is not supported in this environment.');
+    }
+
+    const urlApi = getUrlApi();
+    if (!urlApi || typeof urlApi.revokeObjectURL !== 'function') {
+        throw new Error('Preset export requires the URL.createObjectURL API.');
+    }
+
     const blob = new Blob([text], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const url = urlApi.createObjectURL(blob);
+    const link = doc.createElement('a');
     link.href = url;
     link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+
+    doc.body.appendChild(link);
+
+    try {
+        link.click();
+    } finally {
+        doc.body.removeChild(link);
+        urlApi.revokeObjectURL(url);
+    }
 }
 
 function sanitizeFilename(name) {
@@ -66,6 +102,7 @@ function savePresets(presets) {
         localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets));
     } catch (error) {
         console.error('[Story Tracker] Error saving presets:', error);
+        throw error;
     }
 }
 
@@ -83,7 +120,15 @@ export function saveCurrentPreset(name, { silent = false } = {}) {
         systemPrompt: extensionSettings.systemPrompt || '',
         trackerData: deepClone(extensionSettings.trackerData),
     };
-    savePresets(presets);
+    try {
+        savePresets(presets);
+    } catch (error) {
+        if (!silent) {
+            const message = error?.message || 'Unexpected error while saving the preset.';
+            notify(`Failed to save preset: ${message}`, 'error');
+        }
+        return false;
+    }
     syncPresetSelection(normalizedName);
 
     if (!silent) {
@@ -119,13 +164,25 @@ export function deletePreset(name) {
 
 export function populatePresetDropdown() {
     const presets = getPresets();
+    const $ = typeof globalThis.$ === 'function' ? globalThis.$ : null;
+    if (!$) {
+        return;
+    }
+
     const $select = $('#story-tracker-preset-select');
+    if (!$select || typeof $select.html !== 'function') {
+        return;
+    }
+
     const currentPresetName = extensionSettings.currentPreset || '';
 
     $select.html('');
     $select.append('<option value="">- Select a Preset -</option>');
 
     for (const name in presets) {
+        if (!Object.prototype.hasOwnProperty.call(presets, name)) {
+            continue;
+        }
         $select.append(`<option value="${name}" ${name === currentPresetName ? 'selected' : ''}>${name}</option>`);
     }
 }
@@ -135,8 +192,9 @@ export function syncPresetSelection(presetName = '') {
     updateExtensionSettings({ currentPreset: normalizedName });
     populatePresetDropdown();
 
-    if (typeof globalThis.$ === 'function') {
-        const $select = globalThis.$('#story-tracker-preset-select');
+    const $ = typeof globalThis.$ === 'function' ? globalThis.$ : null;
+    if ($) {
+        const $select = $('#story-tracker-preset-select');
         if ($select && typeof $select.val === 'function') {
             $select.val(normalizedName);
         }
@@ -165,9 +223,16 @@ export function exportPresetToFile(presetName) {
     };
 
     const serialized = serializeTrackerData(payload);
-    downloadSerialized(serialized, sanitizeFilename(normalizedName));
-    notify(`Exported preset "${normalizedName}".`);
-    return true;
+
+    try {
+        downloadSerialized(serialized, sanitizeFilename(normalizedName));
+        notify(`Exported preset "${normalizedName}".`);
+        return true;
+    } catch (error) {
+        const message = error?.message || error;
+        notify(`Failed to export preset: ${message}`, 'error');
+        return false;
+    }
 }
 
 function resolveImportedPresetName(parsed, file, explicitName) {
