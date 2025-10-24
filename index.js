@@ -1,11 +1,18 @@
 import { extensionName, extensionDisplayName, defaultSettings } from './src/core/config.js';
-import { extensionSettings, updateExtensionSettings, setPanelContainer, setSectionsContainer } from './src/core/state.js';
+import {
+    extensionSettings,
+    updateExtensionSettings,
+    setPanelContainer,
+    setSectionsContainer,
+    setLastGeneratedData,
+    setCommittedTrackerData,
+} from './src/core/state.js';
 import { loadDefaultTrackerTemplate, DEFAULT_PRESET_NAME } from './src/core/dataManager.js';
 import { renderTracker } from './src/systems/rendering/tracker.js';
 import { setupPresetManager, saveCurrentPreset } from './src/core/presetManager.js';
 import { setupSettingsPopup, setupFieldPopup, showSettingsModal, showAddSectionModal } from './src/systems/ui/modals.js';
 import { updateTrackerData } from './src/systems/generation/apiClient.js';
-import { loadChatData } from './src/core/persistence.js';
+import { loadChatData, saveSettings, saveChatData } from './src/core/persistence.js';
 import { registerAllEvents } from './src/core/events.js';
 import { commitTrackerData, onMessageSent, onMessageReceived, onCharacterChanged, onMessageSwiped, updatePersonaAvatar } from './src/systems/integration/sillytavern.js';
 import { onGenerationStarted } from './src/systems/generation/injector.js';
@@ -245,6 +252,13 @@ async function initializeExtension(root, html, base, { viaFallback = false } = {
                 trackerData: preset.trackerData,
                 currentPreset: DEFAULT_PRESET_NAME,
             });
+            const presetTrackerClone = preset?.trackerData
+                ? JSON.parse(JSON.stringify(preset.trackerData))
+                : null;
+            setLastGeneratedData(presetTrackerClone);
+            setCommittedTrackerData(presetTrackerClone);
+            saveSettings();
+            saveChatData();
             saveCurrentPreset(DEFAULT_PRESET_NAME);
         } catch (error) {
             console.error('[Story Tracker] Failed to load default preset:', error);
