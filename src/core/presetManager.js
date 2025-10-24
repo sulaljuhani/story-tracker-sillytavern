@@ -92,43 +92,60 @@ export function syncPresetSelection(presetName = '') {
 export function setupPresetManager() {
     populatePresetDropdown();
 
-    $('#story-tracker-preset-select').on('change', function() {
-        const selectedPreset = $(this).val();
-        if (selectedPreset) {
-            loadPreset(selectedPreset);
-            updateExtensionSettings({ currentPreset: selectedPreset });
-            saveSettings();
-        }
-    });
+    $('#story-tracker-preset-select')
+        .off('change.story-tracker-presets')
+        .on('change.story-tracker-presets', function() {
+            const selectedPreset = $(this).val();
+            if (selectedPreset) {
+                loadPreset(selectedPreset);
+                updateExtensionSettings({ currentPreset: selectedPreset });
+                saveSettings();
+            }
+        });
+}
 
-    const modalBody = $('#story-tracker-settings-modal .story-tracker-modal-body');
+export function initializePresetActions(modalBody = $('#story-tracker-settings-modal .story-tracker-modal-body')) {
+    if (!modalBody || modalBody.length === 0) {
+        return;
+    }
+
+    const dataButtons = modalBody.find('.story-tracker-data-buttons');
+    if (!dataButtons.length) {
+        return;
+    }
+
     if (modalBody.find('#preset-actions').length === 0) {
-        modalBody.find('.story-tracker-data-buttons').after(`
+        dataButtons.after(`
             <div id="preset-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center;">
                 <input type="text" id="new-preset-name" placeholder="New preset name..." style="flex-grow: 1;"/>
                 <button id="save-preset" class="story-tracker-btn">Save</button>
                 <button id="delete-preset" class="story-tracker-btn story-tracker-btn-danger">Delete</button>
             </div>
         `);
-
-        $('#save-preset').on('click', () => {
-            const newName = $('#new-preset-name').val().trim();
-            if (newName) {
-                saveCurrentPreset(newName);
-                $('#new-preset-name').val('');
-                populatePresetDropdown();
-                $('#story-tracker-preset-select').val(newName);
-            }
-        });
-
-        $('#delete-preset').on('click', () => {
-            const selectedPreset = $('#story-tracker-preset-select').val();
-            if (selectedPreset && confirm(`Are you sure you want to delete the "${selectedPreset}" preset?`)) {
-                deletePreset(selectedPreset);
-                $('#story-tracker-preset-select').val('');
-            }
-        });
     }
+
+    const presetActions = modalBody.find('#preset-actions');
+    const nameInput = presetActions.find('#new-preset-name');
+    const saveButton = presetActions.find('#save-preset');
+    const deleteButton = presetActions.find('#delete-preset');
+
+    saveButton.off('click').on('click', () => {
+        const newName = nameInput.val().trim();
+        if (newName) {
+            saveCurrentPreset(newName);
+            nameInput.val('');
+            populatePresetDropdown();
+            $('#story-tracker-preset-select').val(newName);
+        }
+    });
+
+    deleteButton.off('click').on('click', () => {
+        const selectedPreset = $('#story-tracker-preset-select').val();
+        if (selectedPreset && confirm(`Are you sure you want to delete the "${selectedPreset}" preset?`)) {
+            deletePreset(selectedPreset);
+            $('#story-tracker-preset-select').val('');
+        }
+    });
 }
 
 export function showEditPromptModal() {
