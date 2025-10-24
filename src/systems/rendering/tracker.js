@@ -3,7 +3,7 @@
  * Handles rendering of the story tracker UI
  */
 
-import { extensionSettings, $sectionsContainer, createSection, createSubsection, createField } from '../../core/state.js';
+import { extensionSettings, $sectionsContainer, createSection, createSubsection, createField, syncTrackerBaselines } from '../../core/state.js';
 import { saveSettings, saveChatData } from '../../core/persistence.js';
 
 // Type imports
@@ -429,6 +429,7 @@ function moveSectionInTracker(sectionId, insertIndex) {
     const clampedIndex = Math.max(0, Math.min(insertIndex, sections.length));
     sections.splice(clampedIndex, 0, movedSection);
     saveSettings();
+    syncTrackerBaselines();
     saveChatData();
     renderTracker();
 }
@@ -596,6 +597,7 @@ function moveFieldWithinSection(sectionId, fieldId, insertIndex) {
     const clampedIndex = Math.max(0, Math.min(insertIndex, section.fields.length));
     section.fields.splice(clampedIndex, 0, movedField);
     saveSettings();
+    syncTrackerBaselines();
     saveChatData();
     renderTracker();
 }
@@ -620,6 +622,7 @@ function updateSectionName(sectionId, newName) {
     if (section) {
         section.name = newName;
         saveSettings();
+        syncTrackerBaselines();
         saveChatData();
     }
 }
@@ -633,6 +636,7 @@ function deleteSection(sectionId) {
         section => section.id !== sectionId
     );
     saveSettings();
+    syncTrackerBaselines();
     saveChatData();
     renderTracker();
 }
@@ -657,6 +661,7 @@ function updateSubsectionName(subsectionId, newName) {
     if (subsection) {
         subsection.name = newName;
         saveSettings();
+        syncTrackerBaselines();
         saveChatData();
     }
 }
@@ -672,6 +677,7 @@ function deleteSubsection(subsectionId) {
         );
     }
     saveSettings();
+    syncTrackerBaselines();
     saveChatData();
     renderTracker();
 }
@@ -685,6 +691,7 @@ function toggleFieldEnabled(fieldId, enabled) {
     if (field) {
         field.enabled = enabled;
         saveSettings();
+        syncTrackerBaselines();
         saveChatData();
         renderTracker();
     }
@@ -697,6 +704,7 @@ function updateFieldName(fieldId, newName) {
     if (field) {
         field.name = newName;
         saveSettings();
+        syncTrackerBaselines();
         saveChatData();
     }
 }
@@ -706,6 +714,7 @@ function updateFieldValue(fieldId, newValue) {
     if (field) {
         field.value = newValue;
         saveSettings();
+        syncTrackerBaselines();
         saveChatData();
     }
 }
@@ -717,6 +726,7 @@ export function updateField(fieldId, newName, newValue, newPrompt) {
         if (newValue !== undefined) field.value = newValue;
         if (newPrompt !== undefined) field.prompt = newPrompt;
         saveSettings();
+        syncTrackerBaselines();
         saveChatData();
         renderTracker();
     }
@@ -735,6 +745,7 @@ function deleteField(fieldId) {
         if (section.fields.length < initialSectionFieldCount) {
             // Field found and deleted from section
             saveSettings();
+            syncTrackerBaselines();
             saveChatData();
             renderTracker();
             return;
@@ -748,6 +759,7 @@ function deleteField(fieldId) {
                 if (subsection.fields.length < initialSubsectionFieldCount) {
                     // Field found and deleted from subsection
                     saveSettings();
+                    syncTrackerBaselines();
                     saveChatData();
                     renderTracker();
                     return;
@@ -795,6 +807,7 @@ export function addSection(name) {
 
     extensionSettings.trackerData.sections.push(section);
     saveSettings();
+    syncTrackerBaselines();
     saveChatData();
     renderTracker();
     return section.id;
@@ -816,6 +829,7 @@ export function addSubsection(sectionId, name) {
     const subsection = createSubsection(subsectionName);
     section.subsections.push(subsection);
     saveSettings();
+    syncTrackerBaselines();
     saveChatData();
     renderTracker();
     return subsection.id;
@@ -845,6 +859,7 @@ export function addField(parentId, name, type = 'text', prompt = '') {
     const field = createField(fieldName, prompt, fieldType);
     parent.fields.push(field);
     saveSettings();
+    syncTrackerBaselines();
     saveChatData();
     renderTracker();
     return field.id;

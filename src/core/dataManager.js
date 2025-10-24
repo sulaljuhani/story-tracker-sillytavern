@@ -2,7 +2,7 @@
  * Tracker data management utilities
  */
 
-import { extensionSettings, updateExtensionSettings } from './state.js';
+import { extensionSettings, updateExtensionSettings, syncTrackerBaselines } from './state.js';
 import { saveSettings, saveChatData } from './persistence.js';
 import {
     FORMAT_JSON,
@@ -67,6 +67,7 @@ export function updateTrackerData(data, options = {}) {
     extensionSettings.trackerData = cloned;
 
     if (!options.skipPersist) {
+        syncTrackerBaselines();
         saveSettings();
         saveChatData();
     }
