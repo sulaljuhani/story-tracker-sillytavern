@@ -34,6 +34,17 @@ function convertTrackerForLLM(trackerData) {
     const converted = JSON.parse(JSON.stringify(trackerData));
 
     for (const section of converted.sections || []) {
+        if (Array.isArray(section.fields)) {
+            const sectionFieldsObject = {};
+            for (const field of section.fields) {
+                sectionFieldsObject[field.name] = {
+                    prompt: field.prompt || '',
+                    value: field.value || ''
+                };
+            }
+            section.fields = sectionFieldsObject;
+        }
+
         for (const subsection of section.subsections || []) {
             const fieldsObject = {};
             for (const field of subsection.fields || []) {

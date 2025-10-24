@@ -27,6 +27,15 @@ function restoreTrackerFromLLM(parsedData) {
             continue;
         }
 
+        const restoredSectionFields = [];
+        for (const originalField of originalSection.fields || []) {
+            const parsedFieldData = parsedSection.fields?.[originalField.name];
+            if (parsedFieldData) {
+                originalField.value = parsedFieldData.value ?? originalField.value;
+            }
+            restoredSectionFields.push(originalField);
+        }
+
         const restoredSubsections = [];
         for (const originalSubsection of originalSection.subsections || []) {
             const parsedSubsection = parsedSection.subsections?.find((subsection) => subsection.name === originalSubsection.name);
@@ -45,6 +54,10 @@ function restoreTrackerFromLLM(parsedData) {
 
             originalSubsection.fields = restoredFields;
             restoredSubsections.push(originalSubsection);
+        }
+
+        if (restoredSectionFields.length > 0 || Array.isArray(originalSection.fields)) {
+            originalSection.fields = restoredSectionFields;
         }
 
         originalSection.subsections = restoredSubsections;
