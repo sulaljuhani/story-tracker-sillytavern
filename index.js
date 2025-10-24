@@ -9,7 +9,7 @@ import {
 } from './src/core/state.js';
 import { loadDefaultTrackerTemplate, DEFAULT_PRESET_NAME } from './src/core/dataManager.js';
 import { renderTracker } from './src/systems/rendering/tracker.js';
-import { setupPresetManager, saveCurrentPreset } from './src/core/presetManager.js';
+import { setupPresetManager, saveCurrentPreset, exportPresetToFile, importPresetFile } from './src/core/presetManager.js';
 import { setupSettingsPopup, setupFieldPopup, showSettingsModal, showAddSectionModal } from './src/systems/ui/modals.js';
 import { updateTrackerData } from './src/systems/generation/apiClient.js';
 import { loadChatData, saveSettings, saveChatData } from './src/core/persistence.js';
@@ -259,7 +259,7 @@ async function initializeExtension(root, html, base, { viaFallback = false } = {
             setCommittedTrackerData(presetTrackerClone);
             saveSettings();
             saveChatData();
-            saveCurrentPreset(DEFAULT_PRESET_NAME);
+            saveCurrentPreset(DEFAULT_PRESET_NAME, { silent: true });
         } catch (error) {
             console.error('[Story Tracker] Failed to load default preset:', error);
         }
@@ -274,6 +274,43 @@ async function initializeExtension(root, html, base, { viaFallback = false } = {
     });
     $root.find('#edit-preset-prompt').on('click', () => {
         import(new URL('./src/core/presetManager.js', base)).then(module => module.showEditPromptModal());
+    });
+
+    $root.find('#story-tracker-preset-save').on('click', () => {
+        const suggestedName = extensionSettings.currentPreset || '';
+        const name = prompt('Enter a name for the preset', suggestedName);
+        const trimmed = name ? name.trim() : '';
+        if (!trimmed) {
+            return;
+        }
+
+        const saved = saveCurrentPreset(trimmed);
+        if (saved) {
+            saveSettings();
+        }
+    });
+
+    const $presetImportInput = $root.find('#story-tracker-preset-import-input');
+    $root.find('#story-tracker-preset-upload').on('click', () => {
+        $presetImportInput.trigger('click');
+    });
+
+    $presetImportInput.on('change', async event => {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        try {
+            await importPresetFile(file);
+        } finally {
+            event.target.value = '';
+        }
+    });
+
+    $root.find('#story-tracker-preset-download').on('click', () => {
+        const selectedPreset = extensionSettings.currentPreset || $root.find('#story-tracker-preset-select').val();
+        exportPresetToFile(selectedPreset);
     });
 
     bindAddSectionButton({ $root, root });

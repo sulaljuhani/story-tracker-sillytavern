@@ -1,5 +1,6 @@
 import { extensionSettings, updateExtensionSettings, setLastGeneratedData, setCommittedTrackerData } from './state.js';
 import { saveSettings, saveChatData, deepClone } from './persistence.js';
+import { parseTrackerData, serializeTrackerData } from './serialization.js';
 import { renderTracker as renderTrackerImplementation } from '../systems/rendering/tracker.js';
 
 let renderTrackerHandler = renderTrackerImplementation;
@@ -9,6 +10,46 @@ export function setRenderTrackerHandler(handler) {
 }
 
 const PRESET_STORAGE_KEY = 'story-tracker-presets';
+const DEFAULT_PRESET_FILENAME = 'story-tracker-preset.json';
+
+function notify(message, type = 'success') {
+    if (typeof window !== 'undefined' && window.toastr) {
+        const handler = type === 'error' ? window.toastr.error : window.toastr.success;
+        handler.call(window.toastr, message, 'Story Tracker');
+    } else {
+        console[type === 'error' ? 'error' : 'log']('[Story Tracker]', message);
+    }
+}
+
+function downloadSerialized(text, filename = DEFAULT_PRESET_FILENAME) {
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function sanitizeFilename(name) {
+    if (!name) {
+        return DEFAULT_PRESET_FILENAME;
+    }
+
+    const sanitized = name
+        .replace(/[\s]+/g, '_')
+        .replace(/[<>:"/\\|?*]+/g, '')
+        .replace(/[\u0000-\u001F]+/g, '')
+        .trim();
+
+    return sanitized ? `${sanitized}.json` : DEFAULT_PRESET_FILENAME;
+}
+
+function normalizePresetName(name) {
+    return typeof name === 'string' ? name.trim() : '';
+}
 
 function getPresets() {
     try {
@@ -28,15 +69,28 @@ function savePresets(presets) {
     }
 }
 
-export function saveCurrentPreset(name) {
-    if (!name) return;
+export function saveCurrentPreset(name, { silent = false } = {}) {
+    const normalizedName = normalizePresetName(name);
+    if (!normalizedName) {
+        if (!silent) {
+            notify('Preset name cannot be empty.', 'error');
+        }
+        return false;
+    }
+
     const presets = getPresets();
-    presets[name] = {
+    presets[normalizedName] = {
         systemPrompt: extensionSettings.systemPrompt || '',
         trackerData: deepClone(extensionSettings.trackerData),
     };
     savePresets(presets);
-    populatePresetDropdown();
+    syncPresetSelection(normalizedName);
+
+    if (!silent) {
+        notify(`Saved preset "${normalizedName}".`);
+    }
+
+    return true;
 }
 
 export function loadPreset(name) {
@@ -89,6 +143,110 @@ export function syncPresetSelection(presetName = '') {
     }
 }
 
+export function exportPresetToFile(presetName) {
+    const normalizedName = normalizePresetName(presetName || extensionSettings.currentPreset);
+    if (!normalizedName) {
+        notify('Please select a preset to export.', 'error');
+        return false;
+    }
+
+    const presets = getPresets();
+    const preset = presets[normalizedName];
+    if (!preset) {
+        notify(`Preset "${normalizedName}" could not be found.`, 'error');
+        return false;
+    }
+
+    const payload = {
+        name: normalizedName,
+        systemPrompt: typeof preset.systemPrompt === 'string' ? preset.systemPrompt : '',
+        trackerData: preset.trackerData || null,
+        exportedAt: new Date().toISOString(),
+    };
+
+    const serialized = serializeTrackerData(payload);
+    downloadSerialized(serialized, sanitizeFilename(normalizedName));
+    notify(`Exported preset "${normalizedName}".`);
+    return true;
+}
+
+function resolveImportedPresetName(parsed, file, explicitName) {
+    const preferred = normalizePresetName(explicitName)
+        || normalizePresetName(parsed?.name)
+        || normalizePresetName(parsed?.presetName)
+        || normalizePresetName(parsed?.meta?.name);
+
+    if (preferred) {
+        return preferred;
+    }
+
+    const fileName = typeof file?.name === 'string' ? file.name : '';
+    if (fileName) {
+        const base = fileName.replace(/\.[^.]+$/u, '');
+        const normalized = normalizePresetName(base);
+        if (normalized) {
+            return normalized;
+        }
+    }
+
+    return '';
+}
+
+function validateImportedPresetStructure(parsed) {
+    if (!parsed || typeof parsed !== 'object') {
+        throw new Error('Preset file must contain a JSON object.');
+    }
+
+    const trackerData = parsed.trackerData;
+    if (!trackerData || typeof trackerData !== 'object') {
+        throw new Error('Preset file is missing trackerData.');
+    }
+
+    if (!Array.isArray(trackerData.sections)) {
+        throw new Error('Preset trackerData.sections must be an array.');
+    }
+
+    return {
+        trackerData,
+        systemPrompt: typeof parsed.systemPrompt === 'string' ? parsed.systemPrompt : '',
+    };
+}
+
+export async function importPresetFile(file, { presetName } = {}) {
+    if (!file) {
+        const message = 'No file provided for preset import.';
+        notify(message, 'error');
+        throw new Error(message);
+    }
+
+    try {
+        const text = await file.text();
+        const parsed = parseTrackerData(text);
+        const { trackerData, systemPrompt } = validateImportedPresetStructure(parsed);
+        const normalizedName = resolveImportedPresetName(parsed, file, presetName);
+
+        if (!normalizedName) {
+            throw new Error('Imported preset does not specify a name.');
+        }
+
+        const presets = getPresets();
+        presets[normalizedName] = {
+            systemPrompt,
+            trackerData: deepClone(trackerData),
+        };
+        savePresets(presets);
+        loadPreset(normalizedName);
+        syncPresetSelection(normalizedName);
+
+        notify(`Imported preset "${normalizedName}".`);
+        return normalizedName;
+    } catch (error) {
+        const message = error?.message || error;
+        notify(`Failed to import preset: ${message}`, 'error');
+        throw error;
+    }
+}
+
 export function setupPresetManager() {
     populatePresetDropdown();
 
@@ -134,7 +292,6 @@ export function initializePresetActions(modalBody = $('#story-tracker-settings-m
         if (newName) {
             saveCurrentPreset(newName);
             nameInput.val('');
-            syncPresetSelection(newName);
             saveSettings();
         }
     });
