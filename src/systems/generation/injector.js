@@ -22,6 +22,10 @@ function getContext() {
     return globalThis.SillyTavern?.getContext?.();
 }
 
+const FALLBACK_PROMPT_TYPES = Object.freeze({
+    IN_CHAT: 'in_chat'
+});
+
 function resolvePromptApi() {
     const context = getContext();
     const setter = context?.setExtensionPrompt || globalThis.setExtensionPrompt;
@@ -34,6 +38,7 @@ function resolvePromptApi() {
         }
         types = globalThis.__storyTrackerFallbackPromptTypes;
     }
+    const types = rawTypes?.IN_CHAT ? rawTypes : FALLBACK_PROMPT_TYPES;
     const usedFallback = !rawTypes?.IN_CHAT;
 
     return { setter, types, usedFallback };

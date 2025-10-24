@@ -28,6 +28,10 @@ function cloneData(data) {
     return data ? JSON.parse(JSON.stringify(data)) : null;
 }
 
+const FALLBACK_PROMPT_TYPES = Object.freeze({
+    IN_CHAT: 'in_chat'
+});
+
 function getLastAssistantMessage(chat) {
     if (!Array.isArray(chat)) {
         return null;
@@ -44,6 +48,8 @@ function getLastAssistantMessage(chat) {
     return null;
 }
 
+const FALLBACK_PROMPT_TYPES = { IN_CHAT: 'in_chat' };
+
 function resolvePromptApi() {
     const context = getContext();
     const setter = context?.setExtensionPrompt || globalThis.setExtensionPrompt;
@@ -56,6 +62,7 @@ function resolvePromptApi() {
         }
         types = globalThis.__storyTrackerFallbackPromptTypes;
     }
+    const types = rawTypes?.IN_CHAT ? rawTypes : FALLBACK_PROMPT_TYPES;
     const usedFallback = !rawTypes?.IN_CHAT;
     return { setter, types, usedFallback };
 }
