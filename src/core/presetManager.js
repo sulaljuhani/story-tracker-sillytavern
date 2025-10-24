@@ -1,4 +1,4 @@
-import { extensionSettings, updateExtensionSettings } from './state.js';
+import { extensionSettings, updateExtensionSettings, setLastGeneratedData, setCommittedTrackerData } from './state.js';
 import { saveSettings, saveChatData, deepClone } from './persistence.js';
 import { renderTracker as renderTrackerImplementation } from '../systems/rendering/tracker.js';
 
@@ -42,11 +42,14 @@ export function saveCurrentPreset(name) {
 export function loadPreset(name) {
     const presets = getPresets();
     if (presets[name]) {
+        const clonedTrackerData = deepClone(presets[name].trackerData);
         updateExtensionSettings({
             systemPrompt: presets[name].systemPrompt,
-            trackerData: deepClone(presets[name].trackerData),
+            trackerData: clonedTrackerData,
             currentPreset: name,
         });
+        setLastGeneratedData(clonedTrackerData);
+        setCommittedTrackerData(clonedTrackerData);
         saveChatData();
         saveSettings();
         renderTrackerHandler();
