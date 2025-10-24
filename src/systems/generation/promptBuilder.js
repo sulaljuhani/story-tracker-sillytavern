@@ -60,6 +60,10 @@ function convertTrackerForLLM(trackerData) {
     return converted;
 }
 
+export function createTrackerPayloadForLLM(trackerData) {
+    return convertTrackerForLLM(trackerData);
+}
+
 /**
  * Generates the complete prompt for tracker updates.
  *
@@ -71,7 +75,7 @@ function convertTrackerForLLM(trackerData) {
 export function generateTrackerPrompt(includeHistory = true, trackerData = null, options = {}) {
     const { includeNarrative = false } = options;
     const data = trackerData || committedTrackerData;
-    const trackerForLLM = convertTrackerForLLM(data);
+    const trackerForLLM = createTrackerPayloadForLLM(data);
 
     let prompt = generateGeneralInstructions(includeNarrative ? 'together' : 'separate');
     prompt += '\n\n';
@@ -101,15 +105,22 @@ export function generateTrackerPrompt(includeHistory = true, trackerData = null,
     prompt += 'Instructions:\n';
     prompt += '- Each field has a "prompt" (what to track) and a "value" (current state).\n';
     prompt += '- Update the "value" of each field based on the recent events while respecting the "prompt".\n';
+    prompt += '- Your reply MUST begin with a single ```json code block that contains the entire tracker data.\n';
+    prompt += '- Even if no values change, repeat the tracker exactly as provided inside that code block so the data is always returned.\n';
 
     if (includeNarrative) {
         prompt += '- Begin your reply with the updated tracker data inside a ```json code block before any narrative text.\n';
-        prompt += '- Immediately after the code block, continue the narrative so that it reflects the tracker changes.\n';
+        prompt += '- After closing the code block, continue the narrative in a new paragraph so that it reflects the tracker changes.\n';
     } else {
         prompt += '- Return only the updated tracker data as a ```json code block with no additional prose.\n';
     }
 
-    prompt += '- Ensure the returned JSON has the same structure as the one provided.';
+    prompt += '- Ensure the returned JSON has the same structure as the one provided (same sections, subsections, and field keys).';
+
+    if (includeNarrative) {
+        prompt += '\n- Example format:\n';
+        prompt += '```json\n{ ... tracker data ... }\n```\nNarrative continues here.';
+    }
 
     return prompt;
 }
