@@ -38,8 +38,8 @@ function convertTrackerForLLM(trackerData) {
             const sectionFieldsObject = {};
             for (const field of section.fields) {
                 sectionFieldsObject[field.name] = {
-                    prompt: field.prompt || '',
-                    value: field.value || ''
+                    prompt: field.prompt ?? '',
+                    value: field.value ?? ''
                 };
             }
             section.fields = sectionFieldsObject;
@@ -49,8 +49,8 @@ function convertTrackerForLLM(trackerData) {
             const fieldsObject = {};
             for (const field of subsection.fields || []) {
                 fieldsObject[field.name] = {
-                    prompt: field.prompt || '',
-                    value: field.value || ''
+                    prompt: field.prompt ?? '',
+                    value: field.value ?? ''
                 };
             }
             subsection.fields = fieldsObject;
