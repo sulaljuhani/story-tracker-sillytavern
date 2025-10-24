@@ -22,7 +22,9 @@ function getContext() {
     return globalThis.SillyTavern?.getContext?.();
 }
 
-const FALLBACK_PROMPT_TYPES = { IN_CHAT: 'in_chat' };
+const FALLBACK_PROMPT_TYPES = Object.freeze({
+    IN_CHAT: 'in_chat'
+});
 
 function resolvePromptApi() {
     const context = getContext();
