@@ -19,6 +19,48 @@ const PROMPT_IDS = {
     CONTEXT: 'story-tracker-context'
 };
 
+function getContext() {
+    return globalThis.SillyTavern?.getContext?.();
+}
+
+const FALLBACK_PROMPT_TYPES = Object.freeze({
+    IN_CHAT: 'in_chat'
+});
+
+function resolvePromptApi() {
+    const context = getContext();
+    const setter = context?.setExtensionPrompt || globalThis.setExtensionPrompt;
+    const rawTypes = context?.extension_prompt_types || globalThis.extension_prompt_types;
+    let types = rawTypes;
+
+    if (!types?.IN_CHAT) {
+        if (!globalThis.__storyTrackerFallbackPromptTypes) {
+            globalThis.__storyTrackerFallbackPromptTypes = { IN_CHAT: 'in_chat' };
+        }
+        types = globalThis.__storyTrackerFallbackPromptTypes;
+    }
+    const types = rawTypes?.IN_CHAT ? rawTypes : FALLBACK_PROMPT_TYPES;
+    const usedFallback = !rawTypes?.IN_CHAT;
+
+    return { setter, types, usedFallback };
+}
+
+function callSetExtensionPrompt(setter, id, value, type, priority = 0, shouldAppend = false) {
+    if (typeof setter !== 'function') {
+        return;
+    }
+
+    const argCount = setter.length;
+
+    if (argCount >= 5) {
+        setter(id, value, type, priority, shouldAppend);
+    } else if (argCount === 4) {
+        setter(id, value, type, priority);
+    } else {
+        setter(id, value, type);
+    }
+}
+
 function ensureCommittedBaseline() {
     if (lastActionWasSwipe) {
         return;
