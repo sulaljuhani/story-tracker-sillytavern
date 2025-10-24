@@ -20,6 +20,10 @@ import { onGenerationStarted } from '../generation/injector.js';
 
 const SWIPE_STORAGE_KEY = 'story_tracker_swipes';
 
+const FALLBACK_PROMPT_TYPES = Object.freeze({
+    IN_CHAT: 'in_chat'
+});
+
 function getContext() {
     return globalThis.SillyTavern?.getContext?.();
 }

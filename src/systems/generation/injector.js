@@ -18,6 +18,10 @@ const PROMPT_IDS = {
     CONTEXT: 'story-tracker-context'
 };
 
+const FALLBACK_PROMPT_TYPES = Object.freeze({
+    IN_CHAT: 'in_chat'
+});
+
 function getContext() {
     return globalThis.SillyTavern?.getContext?.();
 }
