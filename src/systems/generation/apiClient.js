@@ -5,12 +5,11 @@
 
 import {
     extensionSettings,
-    committedTrackerData,
     isGenerating,
     setIsGenerating,
     setLastActionWasSwipe,
     setLastGeneratedData,
-    setCommittedTrackerData
+    syncTrackerBaselines
 } from '../../core/state.js';
 import { saveSettings, saveChatData } from '../../core/persistence.js';
 import { generateSeparateUpdatePrompt } from './promptBuilder.js';
@@ -66,12 +65,7 @@ export async function updateTrackerData(renderCallback) {
         const trackerClone = JSON.parse(JSON.stringify(parsedData.trackerData));
         setLastGeneratedData(trackerClone);
         extensionSettings.trackerData = trackerClone;
-
-        // Ensure committed tracker baseline exists for upcoming prompts
-        const hasCommittedSections = Array.isArray(committedTrackerData?.sections) && committedTrackerData.sections.length > 0;
-        if (!hasCommittedSections) {
-            setCommittedTrackerData(trackerClone);
-        }
+        syncTrackerBaselines();
 
         // Attach tracker data to the last assistant message for swipe awareness
         const chat = context.chat || [];
