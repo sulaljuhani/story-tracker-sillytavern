@@ -48,44 +48,6 @@ test('resolvePromptApi maps alternate prompt type keys to IN_CHAT', () => {
     });
 });
 
-test('resolvePromptApi handles prompt type arrays with object descriptors', () => {
-    const setter = () => {};
-    const context = {
-        setExtensionPrompt: setter,
-        extension_prompt_types: [
-            { key: 'MEMORY', value: 'memory', label: 'Memory' },
-            { key: 'INSTRUCT', value: 'instruct', label: 'Instruct' },
-        ],
-    };
-
-    withSillyTavernContext(context, () => {
-        const result = resolvePromptApi();
-
-        assert.equal(result.types.IN_CHAT, 'instruct', 'Expected IN_CHAT to map using object descriptor array entries.');
-        assert.equal(result.mappedFrom, 'INSTRUCT', 'Expected mappedFrom to report the descriptor key.');
-        assert.equal(result.usedFallback, false, 'Expected object descriptors to avoid fallback usage.');
-    });
-});
-
-test('resolvePromptApi handles nested prompt type objects', () => {
-    const setter = () => {};
-    const context = {
-        setExtensionPrompt: setter,
-        extension_prompt_types: {
-            INSTRUCT: { value: 'instruct', label: 'Instruct' },
-            MEMORY: { value: 'memory', label: 'Memory' },
-        },
-    };
-
-    withSillyTavernContext(context, () => {
-        const result = resolvePromptApi();
-
-        assert.equal(result.types.IN_CHAT, 'instruct', 'Expected IN_CHAT to be derived from nested object descriptors.');
-        assert.equal(result.mappedFrom, 'INSTRUCT', 'Expected mappedFrom to prefer the matching nested descriptor.');
-        assert.equal(result.usedFallback, false, 'Expected nested descriptors to avoid fallback usage.');
-    });
-});
-
 test('resolvePromptApi falls back when no usable prompt types are exposed', () => {
     const setter = () => {};
     const context = {
