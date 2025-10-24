@@ -16,6 +16,7 @@ export function setupMobileToggle() {
     const $mobileToggle = $('#story-tracker-mobile-toggle');
     const $panel = $('#story-tracker-panel');
     const $overlay = $('<div class="story-tracker-mobile-overlay"></div>');
+    const $document = $(document);
 
     // DIAGNOSTIC: Check if elements exist and log setup state
     console.log('[Story Tracker Mobile] ========================================');
@@ -76,7 +77,7 @@ export function setupMobileToggle() {
     }
 
     // Touch start - begin tracking
-    $mobileToggle.on('touchstart', function(e) {
+    $mobileToggle.off('touchstart').on('touchstart', function(e) {
         const touch = e.originalEvent.touches[0];
 
         touchStartTime = Date.now();
@@ -91,7 +92,7 @@ export function setupMobileToggle() {
     });
 
     // Touch move - check if should start dragging
-    $mobileToggle.on('touchmove', function(e) {
+    $mobileToggle.off('touchmove').on('touchmove', function(e) {
         const touch = e.originalEvent.touches[0];
         const deltaX = touch.clientX - touchStartX;
         const deltaY = touch.clientY - touchStartY;
@@ -136,7 +137,7 @@ export function setupMobileToggle() {
     // Mouse drag support for desktop
     let mouseDown = false;
 
-    $mobileToggle.on('mousedown', function(e) {
+    $mobileToggle.off('mousedown').on('mousedown', function(e) {
         // Prevent default to avoid text selection
         e.preventDefault();
 
@@ -153,7 +154,9 @@ export function setupMobileToggle() {
     });
 
     // Mouse move - only track if mouse is down
-    $(document).on('mousemove', function(e) {
+    $document.off('mousemove.storyTrackerMobile mouseup.storyTrackerMobile');
+
+    $document.on('mousemove.storyTrackerMobile', function(e) {
         if (!mouseDown) return;
 
         const deltaX = e.clientX - touchStartX;
@@ -197,7 +200,7 @@ export function setupMobileToggle() {
     });
 
     // Mouse up - save position or let click handler toggle
-    $(document).on('mouseup', function(e) {
+    $document.on('mouseup.storyTrackerMobile', function(e) {
         if (!mouseDown) return;
 
         mouseDown = false;
