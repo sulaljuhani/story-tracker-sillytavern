@@ -178,6 +178,14 @@ function registerEventHandlers() {
     const { value: eventTypes, source: eventTypesSource } = resolveEventTypes(context);
     const eventSource = context?.eventSource;
 
+    console.log('[Story Tracker DEBUG] Registering events:', {
+        hasEventSource: Boolean(eventSource),
+        hasEventTypes: Boolean(eventTypes),
+        eventTypesSource,
+        GENERATION_STARTED: eventTypes?.GENERATION_STARTED,
+        MESSAGE_RECEIVED: eventTypes?.MESSAGE_RECEIVED
+    });
+
     if (!eventSource || !eventTypes) {
         console.warn('[Story Tracker] Event API unavailable; skipping event registration', {
             hasEventSource: Boolean(eventSource),
