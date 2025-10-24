@@ -230,3 +230,82 @@ test('parseResponse retains sections and subsections omitted by the model', () =
     assert.equal(allies.fields[0].value, 'Ragnar', 'Allies section field should be preserved when omitted');
     assert.equal(allies.subsections[0].fields[0].value, 'Bring supplies', 'Allies subsection field should be preserved when omitted');
 });
+
+test('parseResponse accepts tracker sections returned as an object map with array fields', () => {
+    const originalTracker = {
+        sections: [
+            {
+                id: 'section-1',
+                name: 'Overview',
+                fields: [buildSectionField('Summary', 'Old summary', 'Keep a short summary')],
+                subsections: [],
+                collapsed: false
+            }
+        ]
+    };
+
+    setExtensionSettings({
+        ...defaultSettings,
+        trackerData: JSON.parse(JSON.stringify(originalTracker))
+    });
+
+    const updatedValue = 'Map based summary';
+    const updatedSnippet = {
+        sections: {
+            Overview: {
+                fields: [
+                    {
+                        name: 'Summary',
+                        value: updatedValue,
+                        prompt: 'Keep a short summary'
+                    }
+                ]
+            }
+        }
+    };
+
+    const responseText = `Tracker update incoming.\n\n\`\`\`json\n${JSON.stringify(updatedSnippet, null, 2)}\n\`\`\`\n`;
+
+    const { trackerData } = parseResponse(responseText);
+
+    assert.ok(trackerData, 'Expected tracker data to be parsed');
+    assert.equal(trackerData.sections[0].fields[0].value, updatedValue);
+});
+
+test('parseResponse accepts direct scalar field values from the model', () => {
+    const originalTracker = {
+        sections: [
+            {
+                id: 'section-1',
+                name: 'Overview',
+                fields: [buildSectionField('Summary', 'Old summary', 'Keep a short summary')],
+                subsections: [],
+                collapsed: false
+            }
+        ]
+    };
+
+    setExtensionSettings({
+        ...defaultSettings,
+        trackerData: JSON.parse(JSON.stringify(originalTracker))
+    });
+
+    const updatedValue = 'Scalar summary value';
+    const updatedSnippet = {
+        sections: [
+            {
+                name: 'Overview',
+                fields: {
+                    Summary: updatedValue
+                }
+            }
+        ]
+    };
+
+    const responseText = `Tracker update incoming.\n\n\`\`\`json\n${JSON.stringify(updatedSnippet, null, 2)}\n\`\`\`\n`;
+
+    const { trackerData } = parseResponse(responseText);
+
+    assert.ok(trackerData, 'Expected tracker data to be parsed');
+    assert.equal(trackerData.sections[0].fields[0].value, updatedValue);
+});

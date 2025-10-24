@@ -25,8 +25,34 @@ function getContext() {
 function resolvePromptApi() {
     const context = getContext();
     const setter = context?.setExtensionPrompt || globalThis.setExtensionPrompt;
-    const types = context?.extension_prompt_types || globalThis.extension_prompt_types;
-    return { setter, types };
+    const rawTypes = context?.extension_prompt_types || globalThis.extension_prompt_types;
+    let types = rawTypes;
+
+    if (!types?.IN_CHAT) {
+        if (!globalThis.__storyTrackerFallbackPromptTypes) {
+            globalThis.__storyTrackerFallbackPromptTypes = { IN_CHAT: 'in_chat' };
+        }
+        types = globalThis.__storyTrackerFallbackPromptTypes;
+    }
+    const usedFallback = !rawTypes?.IN_CHAT;
+
+    return { setter, types, usedFallback };
+}
+
+function callSetExtensionPrompt(setter, id, value, type, priority = 0, shouldAppend = false) {
+    if (typeof setter !== 'function') {
+        return;
+    }
+
+    const argCount = setter.length;
+
+    if (argCount >= 5) {
+        setter(id, value, type, priority, shouldAppend);
+    } else if (argCount === 4) {
+        setter(id, value, type, priority);
+    } else {
+        setter(id, value, type);
+    }
 }
 
 function ensureCommittedBaseline() {
@@ -64,19 +90,36 @@ function buildTrackerContext(data) {
  * Injects tracker instructions or context when a generation starts.
  */
 export function onGenerationStarted() {
+    console.log('[Story Tracker DEBUG] onGenerationStarted called', {
+        enabled: extensionSettings.enabled,
+        isGenerating,
+        generationMode: extensionSettings.generationMode,
+        hasSections: Boolean(extensionSettings.trackerData?.sections?.length)
+    });
+
     if (!extensionSettings.enabled) {
+        console.log('[Story Tracker DEBUG] Extension disabled, skipping injection');
         return;
     }
 
     if (isGenerating) {
         // Skip injections for secondary tracker-generation calls
+        console.log('[Story Tracker DEBUG] Already generating, skipping injection');
         return;
     }
 
     ensureCommittedBaseline();
 
-    const { setter, types } = resolvePromptApi();
+    const { setter, types, usedFallback } = resolvePromptApi();
+    console.log('[Story Tracker DEBUG] Prompt API resolved:', {
+        hasSetter: typeof setter === 'function',
+        hasTypes: Boolean(types),
+        hasInChat: Boolean(types?.IN_CHAT),
+        inChatValue: types?.IN_CHAT,
+        usedFallback
+    });
     if (typeof setter !== 'function' || !types?.IN_CHAT) {
+        console.error('[Story Tracker DEBUG] Prompt API not available - injection failed!');
         return;
     }
 
@@ -85,17 +128,24 @@ export function onGenerationStarted() {
             includeNarrative: true
         });
 
-        setter(PROMPT_IDS.INSTRUCTIONS, instructions, types.IN_CHAT, 0, false);
-        setter(PROMPT_IDS.CONTEXT, '', types.IN_CHAT, 0, false);
+        console.log('[Story Tracker DEBUG] Injecting prompt:', {
+            promptLength: instructions.length,
+            promptPreview: instructions.substring(0, 200)
+        });
+
+        callSetExtensionPrompt(setter, PROMPT_IDS.INSTRUCTIONS, instructions, types.IN_CHAT, 0, false);
+        callSetExtensionPrompt(setter, PROMPT_IDS.CONTEXT, '', types.IN_CHAT, 0, false);
+
+        console.log('[Story Tracker DEBUG] Prompt injected successfully');
     } else if (extensionSettings.generationMode === 'separate') {
         const baseline = committedTrackerData || extensionSettings.trackerData;
         const contextSummary = buildTrackerContext(baseline);
 
-        setter(PROMPT_IDS.INSTRUCTIONS, '', types.IN_CHAT, 0, false);
+        callSetExtensionPrompt(setter, PROMPT_IDS.INSTRUCTIONS, '', types.IN_CHAT, 0, false);
         if (contextSummary) {
-            setter(PROMPT_IDS.CONTEXT, contextSummary, types.IN_CHAT, 1, false);
+            callSetExtensionPrompt(setter, PROMPT_IDS.CONTEXT, contextSummary, types.IN_CHAT, 1, false);
         } else {
-            setter(PROMPT_IDS.CONTEXT, '', types.IN_CHAT, 1, false);
+            callSetExtensionPrompt(setter, PROMPT_IDS.CONTEXT, '', types.IN_CHAT, 1, false);
         }
     }
 }
