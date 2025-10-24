@@ -18,6 +18,10 @@ const PROMPT_IDS = {
     CONTEXT: 'story-tracker-context'
 };
 
+const FALLBACK_PROMPT_TYPES = Object.freeze({
+    IN_CHAT: 'in_chat'
+});
+
 function getContext() {
     return globalThis.SillyTavern?.getContext?.();
 }
@@ -25,8 +29,22 @@ function getContext() {
 function resolvePromptApi() {
     const context = getContext();
     const setter = context?.setExtensionPrompt || globalThis.setExtensionPrompt;
-    const types = context?.extension_prompt_types || globalThis.extension_prompt_types;
-    return { setter, types };
+    const providedTypes = context?.extension_prompt_types || globalThis.extension_prompt_types;
+    const types = providedTypes || FALLBACK_PROMPT_TYPES;
+    return { setter, types, usingFallback: !providedTypes };
+}
+
+function callExtensionPrompt(setter, id, content, type, position = 0, shouldPersist = false) {
+    if (typeof setter !== 'function') {
+        return;
+    }
+
+    if (setter.length <= 3) {
+        setter(id, content, type);
+        return;
+    }
+
+    setter(id, content, type, position, shouldPersist);
 }
 
 function ensureCommittedBaseline() {
@@ -84,12 +102,13 @@ export function onGenerationStarted() {
 
     ensureCommittedBaseline();
 
-    const { setter, types } = resolvePromptApi();
+    const { setter, types, usingFallback } = resolvePromptApi();
     console.log('[Story Tracker DEBUG] Prompt API resolved:', {
         hasSetter: typeof setter === 'function',
         hasTypes: Boolean(types),
         hasInChat: Boolean(types?.IN_CHAT),
-        inChatValue: types?.IN_CHAT
+        inChatValue: types?.IN_CHAT,
+        usingFallback
     });
     if (typeof setter !== 'function' || !types?.IN_CHAT) {
         console.error('[Story Tracker DEBUG] Prompt API not available - injection failed!');
@@ -106,19 +125,19 @@ export function onGenerationStarted() {
             promptPreview: instructions.substring(0, 200)
         });
 
-        setter(PROMPT_IDS.INSTRUCTIONS, instructions, types.IN_CHAT, 0, false);
-        setter(PROMPT_IDS.CONTEXT, '', types.IN_CHAT, 0, false);
+        callExtensionPrompt(setter, PROMPT_IDS.INSTRUCTIONS, instructions, types.IN_CHAT, 0, false);
+        callExtensionPrompt(setter, PROMPT_IDS.CONTEXT, '', types.IN_CHAT, 0, false);
 
         console.log('[Story Tracker DEBUG] Prompt injected successfully');
     } else if (extensionSettings.generationMode === 'separate') {
         const baseline = committedTrackerData || extensionSettings.trackerData;
         const contextSummary = buildTrackerContext(baseline);
 
-        setter(PROMPT_IDS.INSTRUCTIONS, '', types.IN_CHAT, 0, false);
+        callExtensionPrompt(setter, PROMPT_IDS.INSTRUCTIONS, '', types.IN_CHAT, 0, false);
         if (contextSummary) {
-            setter(PROMPT_IDS.CONTEXT, contextSummary, types.IN_CHAT, 1, false);
+            callExtensionPrompt(setter, PROMPT_IDS.CONTEXT, contextSummary, types.IN_CHAT, 1, false);
         } else {
-            setter(PROMPT_IDS.CONTEXT, '', types.IN_CHAT, 1, false);
+            callExtensionPrompt(setter, PROMPT_IDS.CONTEXT, '', types.IN_CHAT, 1, false);
         }
     }
 }
