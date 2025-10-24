@@ -1,16 +1,16 @@
 /**
  * Serialization helpers for Story Tracker data structures.
- * Supports JSON and a limited YAML dialect compatible with the generated output.
+ * Only JSON is supported.
  */
 
 const JSON_INDENT = 2;
 const FORMAT_JSON = 'json';
 
-function serializeTrackerData(data, format = FORMAT_JSON) {
+function serializeTrackerData(data) {
     return JSON.stringify(data, null, JSON_INDENT);
 }
 
-function parseTrackerData(text, format = FORMAT_JSON) {
+function parseTrackerData(text) {
     return JSON.parse(text);
 }
 
