@@ -117,13 +117,14 @@ export function onGenerationStarted() {
 
     ensureCommittedBaseline();
 
-    const { setter, types, usedFallback } = resolvePromptApi();
+    const { setter, types, usedFallback, mappedFrom } = resolvePromptApi();
     console.log('[Story Tracker DEBUG] Prompt API resolved:', {
         hasSetter: typeof setter === 'function',
         hasTypes: Boolean(types),
         hasInChat: Boolean(types?.IN_CHAT),
         inChatValue: types?.IN_CHAT,
-        usedFallback
+        usedFallback,
+        mappedFrom
     });
     if (typeof setter !== 'function' || !types?.IN_CHAT) {
         console.error('[Story Tracker DEBUG] Prompt API not available - injection failed!');
