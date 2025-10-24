@@ -11,44 +11,28 @@ import { saveSettings, saveChatData } from '../../core/persistence.js';
 /** @typedef {import('../../types/tracker.js').TrackerSubsection} TrackerSubsection */
 /** @typedef {import('../../types/tracker.js').TrackerField} TrackerField */
 
-const sortableScriptUrl = new URL('../../lib/sortable.min.js', import.meta.url).toString();
-let sortableLoadPromise = null;
+const dragState = {
+    type: null,
+    sectionId: null,
+    fieldId: null,
+    sourceSectionId: null,
+};
 
-function loadSortableLibrary() {
-    if (typeof Sortable !== 'undefined') {
-        return Promise.resolve(Sortable);
-    }
+let sectionDragContainer = null;
 
-    if (!sortableLoadPromise) {
-        sortableLoadPromise = fetch(sortableScriptUrl)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch Sortable library: ${response.status} ${response.statusText}`);
-                }
-                return response.text();
-            })
-            .then(code => {
-                const scriptSource = code + `
-//# sourceURL=story-tracker-sortable.min.js
-return this.Sortable;`;
-                const scriptFn = new Function(scriptSource);
-                const sortable = scriptFn.call(globalThis);
-                if (typeof sortable === 'undefined') {
-                    throw new Error('Sortable did not register on globalThis after evaluation');
-                }
-                return sortable;
-            })
-            .catch(error => {
-                console.warn('[Story Tracker] Failed to initialize Sortable library', error);
-                sortableLoadPromise = null;
-                throw error;
-            });
-    }
-
-    return sortableLoadPromise;
+function resetDragState() {
+    dragState.type = null;
+    dragState.sectionId = null;
+    dragState.fieldId = null;
+    dragState.sourceSectionId = null;
 }
 
-
+function isInteractiveElement(target) {
+    if (!target) {
+        return false;
+    }
+    return Boolean(target.closest('button, a, input, textarea, select'));
+}
 
 /**
  * Renders the complete tracker UI
@@ -100,18 +84,18 @@ export function renderSection(section) {
 
     return `
         <div class="story-tracker-section" data-section-id="${section.id}">
-            <div class="story-tracker-section-header ${collapsedClass}">
+            <div class="story-tracker-section-header ${collapsedClass}" draggable="true" data-section-id="${section.id}">
                 <div class="story-tracker-section-toggle">
                     <i class="fa-solid fa-chevron-down"></i>
                 </div>
-                <div class="story-tracker-section-title">${section.name}</div>
+                <div class="story-tracker-section-title" data-section-id="${section.id}">${section.name}</div>
                 <div class="story-tracker-section-actions">
                     <button class="story-tracker-btn story-tracker-btn-small" data-action="add-field" data-section-id="${section.id}" title="Add Story Element">
                         <i class="fa-solid fa-plus"></i>
                     </button>
                 </div>
             </div>
-            <div class="story-tracker-section-content" style="display: ${section.collapsed ? 'none' : 'block'}">
+            <div class="story-tracker-section-content" data-section-id="${section.id}" style="display: ${section.collapsed ? 'none' : 'block'}">
                 ${contentHtml}
             </div>
         </div>
@@ -160,7 +144,7 @@ export function renderField(field) {
     const enabledClass = field.enabled ? 'enabled' : 'disabled';
 
     return `
-        <div class="story-tracker-field ${enabledClass}" data-field-id="${field.id}">
+        <div class="story-tracker-field ${enabledClass}" data-field-id="${field.id}" draggable="true">
             <div class="story-tracker-field-name">${field.name}:</div>
             <div class="story-tracker-field-value">${field.value || '...'}</div>
             <div class="story-tracker-field-actions">
@@ -246,82 +230,336 @@ function attachFieldEventListeners() {
 }
 
 /**
- * Initializes drag-and-drop functionality using Sortable.js
+ * Initializes drag-and-drop functionality for sections and fields.
  */
 function initializeDragAndDrop() {
     const sectionsContainerEl = document.getElementById('story-tracker-sections');
-    const sectionElements = document.querySelectorAll('.story-tracker-section');
-
-    if (!sectionsContainerEl || sectionElements.length === 0) {
+    if (!sectionsContainerEl || sectionsContainerEl.children.length === 0) {
         return;
     }
 
-    loadSortableLibrary()
-        .then(SortableLib => {
-            if (sectionsContainerEl.children.length > 0) {
-                SortableLib.create(sectionsContainerEl, {
-                    animation: 150,
-                    handle: '.story-tracker-section-header',
-                    draggable: '.story-tracker-section',
-                    ghostClass: 'story-tracker-drag-placeholder',
-                    onEnd: ({ oldIndex, newIndex }) => {
-                        if (oldIndex === newIndex || oldIndex == null || newIndex == null) {
-                            return;
-                        }
+    setupSectionDragAndDrop(sectionsContainerEl);
+    setupFieldDragAndDrop(sectionsContainerEl);
+}
 
-                        ensureTrackerData();
-                        const sections = extensionSettings.trackerData.sections || [];
-                        const [movedSection] = sections.splice(oldIndex, 1);
-                        if (movedSection) {
-                            sections.splice(newIndex, 0, movedSection);
-                            saveSettings();
-                            saveChatData();
-                            renderTracker();
-                        }
-                    },
-                });
-            }
+function setupSectionDragAndDrop(container) {
+    sectionDragContainer = container;
 
-            sectionElements.forEach(sectionEl => {
-                const sectionId = sectionEl.getAttribute('data-section-id');
-                const contentEl = sectionEl.querySelector('.story-tracker-section-content');
-                if (!sectionId || !contentEl) {
-                    return;
-                }
+    if (!container.dataset.sectionDragHandlers) {
+        container.addEventListener('dragover', handleSectionContainerDragOver);
+        container.addEventListener('drop', handleSectionContainerDrop);
+        container.addEventListener('dragleave', handleSectionContainerDragLeave);
+        container.dataset.sectionDragHandlers = '1';
+    }
 
-                if (!contentEl.querySelector('.story-tracker-field')) {
-                    return;
-                }
+    const headers = Array.from(container.querySelectorAll('.story-tracker-section-header'));
+    headers.forEach(header => {
+        header.setAttribute('draggable', 'true');
+        header.addEventListener('dragstart', handleSectionDragStart);
+        header.addEventListener('dragend', handleSectionDragEnd);
+    });
+}
 
-                SortableLib.create(contentEl, {
-                    animation: 150,
-                    handle: '.story-tracker-field',
-                    draggable: '.story-tracker-field',
-                    ghostClass: 'story-tracker-drag-placeholder',
-                    onEnd: ({ oldIndex, newIndex }) => {
-                        if (oldIndex === newIndex || oldIndex == null || newIndex == null) {
-                            return;
-                        }
+function handleSectionDragStart(event) {
+    if (isInteractiveElement(event.target)) {
+        event.preventDefault();
+        return;
+    }
 
-                        const section = findSectionById(sectionId);
-                        if (!section || !Array.isArray(section.fields)) {
-                            return;
-                        }
+    const headerEl = event.currentTarget;
+    const sectionEl = headerEl.closest('.story-tracker-section');
+    if (!sectionEl) {
+        return;
+    }
 
-                        const [movedField] = section.fields.splice(oldIndex, 1);
-                        if (movedField) {
-                            section.fields.splice(newIndex, 0, movedField);
-                            saveSettings();
-                            saveChatData();
-                            renderTracker();
-                        }
-                    },
-                });
-            });
-        })
-        .catch(error => {
-            console.warn('[Story Tracker] Sortable library unavailable; drag-and-drop disabled', error);
+    dragState.type = 'section';
+    dragState.sectionId = sectionEl.getAttribute('data-section-id');
+
+    try {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', dragState.sectionId || '');
+    } catch (error) {
+        // Some browsers may throw when setting dataTransfer in certain contexts.
+    }
+
+    headerEl.classList.add('story-tracker-dragging');
+    sectionEl.classList.add('story-tracker-dragging');
+}
+
+function handleSectionDragEnd(event) {
+    const headerEl = event.currentTarget;
+    const sectionEl = headerEl.closest('.story-tracker-section');
+    if (sectionEl) {
+        sectionEl.classList.remove('story-tracker-dragging');
+    }
+    headerEl.classList.remove('story-tracker-dragging');
+
+    if (sectionDragContainer) {
+        clearSectionDropIndicators(sectionDragContainer);
+    }
+
+    resetDragState();
+}
+
+function handleSectionContainerDragOver(event) {
+    if (dragState.type !== 'section') {
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const container = event.currentTarget;
+    const position = computeSectionInsertPosition(container, event.clientY, dragState.sectionId);
+    updateSectionDropIndicators(container, position.reference);
+}
+
+function handleSectionContainerDrop(event) {
+    if (dragState.type !== 'section') {
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const container = event.currentTarget;
+    const position = computeSectionInsertPosition(container, event.clientY, dragState.sectionId);
+    moveSectionInTracker(dragState.sectionId, position.insertIndex);
+    clearSectionDropIndicators(container);
+    resetDragState();
+}
+
+function handleSectionContainerDragLeave(event) {
+    if (dragState.type !== 'section') {
+        return;
+    }
+
+    const container = event.currentTarget;
+    if (!container.contains(event.relatedTarget)) {
+        clearSectionDropIndicators(container);
+    }
+}
+
+function computeSectionInsertPosition(container, pointerY, excludeSectionId) {
+    const sections = Array.from(container.querySelectorAll('.story-tracker-section'));
+    const filtered = sections.filter(section => section.getAttribute('data-section-id') !== excludeSectionId);
+
+    let insertIndex = filtered.length;
+    let reference = null;
+
+    for (let index = 0; index < filtered.length; index += 1) {
+        const candidate = filtered[index];
+        const rect = candidate.getBoundingClientRect();
+        if (pointerY < rect.top + rect.height / 2) {
+            insertIndex = index;
+            reference = candidate;
+            break;
+        }
+    }
+
+    return { insertIndex, reference };
+}
+
+function updateSectionDropIndicators(container, referenceElement) {
+    const sections = Array.from(container.querySelectorAll('.story-tracker-section'));
+    sections.forEach(section => {
+        section.classList.toggle('story-tracker-drop-before', section === referenceElement);
+    });
+
+    container.classList.toggle('story-tracker-drop-at-end', !referenceElement && dragState.type === 'section');
+}
+
+function clearSectionDropIndicators(container) {
+    container.classList.remove('story-tracker-drop-at-end');
+    Array.from(container.querySelectorAll('.story-tracker-section')).forEach(section => {
+        section.classList.remove('story-tracker-drop-before', 'story-tracker-dragging');
+        const header = section.querySelector('.story-tracker-section-header');
+        if (header) {
+            header.classList.remove('story-tracker-dragging');
+        }
+    });
+}
+
+function moveSectionInTracker(sectionId, insertIndex) {
+    ensureTrackerData();
+    const sections = extensionSettings.trackerData.sections || [];
+    const currentIndex = sections.findIndex(section => section.id === sectionId);
+
+    if (currentIndex === -1) {
+        return;
+    }
+
+    const [movedSection] = sections.splice(currentIndex, 1);
+    const clampedIndex = Math.max(0, Math.min(insertIndex, sections.length));
+    sections.splice(clampedIndex, 0, movedSection);
+    saveSettings();
+    saveChatData();
+    renderTracker();
+}
+
+function setupFieldDragAndDrop(container) {
+    const sectionElements = Array.from(container.querySelectorAll('.story-tracker-section'));
+
+    sectionElements.forEach(sectionEl => {
+        const sectionId = sectionEl.getAttribute('data-section-id');
+        const contentEl = sectionEl.querySelector('.story-tracker-section-content');
+        if (!sectionId || !contentEl) {
+            return;
+        }
+
+        contentEl.dataset.sectionId = sectionId;
+
+        if (!contentEl.dataset.fieldDragHandlers) {
+            contentEl.addEventListener('dragover', handleFieldContainerDragOver);
+            contentEl.addEventListener('drop', handleFieldContainerDrop);
+            contentEl.addEventListener('dragleave', handleFieldContainerDragLeave);
+            contentEl.dataset.fieldDragHandlers = '1';
+        }
+
+        const fields = Array.from(contentEl.querySelectorAll('.story-tracker-field'));
+        fields.forEach(fieldEl => {
+            fieldEl.setAttribute('draggable', 'true');
+            fieldEl.addEventListener('dragstart', handleFieldDragStart);
+            fieldEl.addEventListener('dragend', handleFieldDragEnd);
         });
+    });
+}
+
+function handleFieldDragStart(event) {
+    if (isInteractiveElement(event.target)) {
+        event.preventDefault();
+        return;
+    }
+
+    const fieldEl = event.currentTarget;
+    const sectionEl = fieldEl.closest('.story-tracker-section');
+    if (!sectionEl) {
+        return;
+    }
+
+    dragState.type = 'field';
+    dragState.fieldId = fieldEl.getAttribute('data-field-id');
+    dragState.sourceSectionId = sectionEl.getAttribute('data-section-id');
+
+    try {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', dragState.fieldId || '');
+    } catch (error) {
+        // Ignore browsers that disallow setting dataTransfer in certain contexts.
+    }
+
+    fieldEl.classList.add('story-tracker-dragging');
+    event.stopPropagation();
+}
+
+function handleFieldDragEnd(event) {
+    const fieldEl = event.currentTarget;
+    fieldEl.classList.remove('story-tracker-dragging');
+    const container = fieldEl.closest('.story-tracker-section-content');
+    if (container) {
+        clearFieldDropIndicators(container);
+    }
+    resetDragState();
+}
+
+function handleFieldContainerDragOver(event) {
+    if (dragState.type !== 'field') {
+        return;
+    }
+
+    const container = event.currentTarget;
+    if (container.dataset.sectionId !== dragState.sourceSectionId) {
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const position = computeFieldInsertPosition(container, event.clientY, dragState.fieldId);
+    updateFieldDropIndicators(container, position.reference);
+}
+
+function handleFieldContainerDrop(event) {
+    if (dragState.type !== 'field') {
+        return;
+    }
+
+    const container = event.currentTarget;
+    if (container.dataset.sectionId !== dragState.sourceSectionId) {
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const position = computeFieldInsertPosition(container, event.clientY, dragState.fieldId);
+    moveFieldWithinSection(dragState.sourceSectionId, dragState.fieldId, position.insertIndex);
+    clearFieldDropIndicators(container);
+    resetDragState();
+}
+
+function handleFieldContainerDragLeave(event) {
+    if (dragState.type !== 'field') {
+        return;
+    }
+
+    const container = event.currentTarget;
+    if (!container.contains(event.relatedTarget)) {
+        clearFieldDropIndicators(container);
+    }
+}
+
+function computeFieldInsertPosition(container, pointerY, excludeFieldId) {
+    const fields = Array.from(container.querySelectorAll('.story-tracker-field'));
+    const filtered = fields.filter(field => field.getAttribute('data-field-id') !== excludeFieldId);
+
+    let insertIndex = filtered.length;
+    let reference = null;
+
+    for (let index = 0; index < filtered.length; index += 1) {
+        const candidate = filtered[index];
+        const rect = candidate.getBoundingClientRect();
+        if (pointerY < rect.top + rect.height / 2) {
+            insertIndex = index;
+            reference = candidate;
+            break;
+        }
+    }
+
+    return { insertIndex, reference };
+}
+
+function updateFieldDropIndicators(container, referenceElement) {
+    const fields = Array.from(container.querySelectorAll('.story-tracker-field'));
+    fields.forEach(field => {
+        field.classList.toggle('story-tracker-drop-before', field === referenceElement);
+    });
+
+    container.classList.toggle('story-tracker-drop-at-end', !referenceElement && dragState.type === 'field');
+}
+
+function clearFieldDropIndicators(container) {
+    container.classList.remove('story-tracker-drop-at-end');
+    Array.from(container.querySelectorAll('.story-tracker-field')).forEach(field => {
+        field.classList.remove('story-tracker-drop-before', 'story-tracker-dragging');
+    });
+}
+
+function moveFieldWithinSection(sectionId, fieldId, insertIndex) {
+    const section = findSectionById(sectionId);
+    if (!section || !Array.isArray(section.fields)) {
+        return;
+    }
+
+    const currentIndex = section.fields.findIndex(field => field.id === fieldId);
+    if (currentIndex === -1) {
+        return;
+    }
+
+    const [movedField] = section.fields.splice(currentIndex, 1);
+    const clampedIndex = Math.max(0, Math.min(insertIndex, section.fields.length));
+    section.fields.splice(clampedIndex, 0, movedField);
+    saveSettings();
+    saveChatData();
+    renderTracker();
 }
 
 /**

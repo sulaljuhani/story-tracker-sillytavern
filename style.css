@@ -168,6 +168,37 @@ body:has(.story-tracker-panel.story-tracker-position-left) #sheld {
     border: 2px dashed var(--st-highlight);
     border-radius: 0.375rem;
 }
+.story-tracker-section,
+.story-tracker-field {
+    position: relative;
+}
+
+.story-tracker-section-header[draggable="true"],
+.story-tracker-field[draggable="true"] {
+    cursor: grab;
+}
+
+.story-tracker-section.story-tracker-dragging,
+.story-tracker-field.story-tracker-dragging {
+    opacity: 0.6;
+}
+
+.story-tracker-section.story-tracker-drop-before::before,
+.story-tracker-field.story-tracker-drop-before::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    border-top: 2px dashed var(--st-highlight);
+    pointer-events: none;
+}
+
+.story-tracker-sections.story-tracker-drop-at-end,
+.story-tracker-section-content.story-tracker-drop-at-end {
+    box-shadow: inset 0 -2px 0 0 var(--st-highlight);
+}
+
 
 .story-tracker-panel:focus-visible {
     outline: 2px solid var(--st-highlight);
