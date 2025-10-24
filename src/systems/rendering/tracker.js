@@ -12,7 +12,6 @@ import { saveSettings, saveChatData } from '../../core/persistence.js';
 /** @typedef {import('../../types/tracker.js').TrackerField} TrackerField */
 
 const sortableScriptUrl = new URL('../../lib/sortable.min.js', import.meta.url).toString();
-const SORTABLE_SCRIPT_ATTR = 'data-story-tracker-sortable';
 let sortableLoadPromise = null;
 
 function loadSortableLibrary() {
@@ -21,48 +20,29 @@ function loadSortableLibrary() {
     }
 
     if (!sortableLoadPromise) {
-        sortableLoadPromise = new Promise((resolve, reject) => {
-            if (typeof Sortable !== 'undefined') {
-                resolve(Sortable);
-                return;
-            }
-
-            const existingScript = document.querySelector(`script[${SORTABLE_SCRIPT_ATTR}]`);
-            const scriptEl = existingScript || document.createElement('script');
-
-            const handleError = () => {
-                scriptEl.removeEventListener('load', handleLoad);
-                const error = new Error('Failed to load Sortable library');
-                console.warn('[Story Tracker] Failed to load Sortable library', error);
-                sortableLoadPromise = null;
-                reject(error);
-            };
-
-            const handleLoad = () => {
-                scriptEl.removeEventListener('error', handleError);
-                scriptEl.dataset.storyTrackerSortableLoaded = 'true';
-                if (typeof Sortable === 'undefined') {
-                    const error = new Error('Sortable not found after script load');
-                    console.warn('[Story Tracker] Sortable library did not define a global', error);
-                    sortableLoadPromise = null;
-                    reject(error);
-                    return;
+        sortableLoadPromise = fetch(sortableScriptUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch Sortable library: ${response.status} ${response.statusText}`);
                 }
-                resolve(Sortable);
-            };
-
-            scriptEl.addEventListener('load', handleLoad, { once: true });
-            scriptEl.addEventListener('error', handleError, { once: true });
-
-            if (!existingScript) {
-                scriptEl.async = true;
-                scriptEl.src = sortableScriptUrl;
-                scriptEl.setAttribute(SORTABLE_SCRIPT_ATTR, '1');
-                (document.head || document.body || document.documentElement).appendChild(scriptEl);
-            } else if (!existingScript.hasAttribute(SORTABLE_SCRIPT_ATTR)) {
-                existingScript.setAttribute(SORTABLE_SCRIPT_ATTR, '1');
-            }
-        });
+                return response.text();
+            })
+            .then(code => {
+                const scriptSource = code + `
+//# sourceURL=story-tracker-sortable.min.js
+return this.Sortable;`;
+                const scriptFn = new Function(scriptSource);
+                const sortable = scriptFn.call(globalThis);
+                if (typeof sortable === 'undefined') {
+                    throw new Error('Sortable did not register on globalThis after evaluation');
+                }
+                return sortable;
+            })
+            .catch(error => {
+                console.warn('[Story Tracker] Failed to initialize Sortable library', error);
+                sortableLoadPromise = null;
+                throw error;
+            });
     }
 
     return sortableLoadPromise;
