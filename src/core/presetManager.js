@@ -134,8 +134,8 @@ export function initializePresetActions(modalBody = $('#story-tracker-settings-m
         if (newName) {
             saveCurrentPreset(newName);
             nameInput.val('');
-            populatePresetDropdown();
-            $('#story-tracker-preset-select').val(newName);
+            syncPresetSelection(newName);
+            saveSettings();
         }
     });
 
