@@ -117,7 +117,7 @@ export function generateId(prefix = 'item') {
 }
 
 /**
- * Create a new empty section
+ * Create a new empty section with initialized field and subsection collections
  * @param {string} name - Section name
  * @returns {import('../types/tracker.js').TrackerSection} New section object
  */
@@ -125,6 +125,7 @@ export function createSection(name = 'New Section') {
     return {
         id: generateId('section'),
         name: name,
+        fields: [],
         subsections: [],
         collapsed: false
     };

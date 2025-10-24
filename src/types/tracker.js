@@ -24,10 +24,11 @@
  */
 
 /**
- * Represents a top-level section containing subsections
+ * Represents a top-level section containing fields and subsections
  * @typedef {Object} TrackerSection
  * @property {string} id - Unique identifier for the section
  * @property {string} name - Display name of the section
+ * @property {TrackerField[]} fields - Array of fields directly within the section
  * @property {TrackerSubsection[]} subsections - Array of subsections in this section
  * @property {boolean} collapsed - Whether this section is collapsed in UI
  */
