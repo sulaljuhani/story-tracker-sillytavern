@@ -64,19 +64,35 @@ function buildTrackerContext(data) {
  * Injects tracker instructions or context when a generation starts.
  */
 export function onGenerationStarted() {
+    console.log('[Story Tracker DEBUG] onGenerationStarted called', {
+        enabled: extensionSettings.enabled,
+        isGenerating,
+        generationMode: extensionSettings.generationMode,
+        hasSections: Boolean(extensionSettings.trackerData?.sections?.length)
+    });
+
     if (!extensionSettings.enabled) {
+        console.log('[Story Tracker DEBUG] Extension disabled, skipping injection');
         return;
     }
 
     if (isGenerating) {
         // Skip injections for secondary tracker-generation calls
+        console.log('[Story Tracker DEBUG] Already generating, skipping injection');
         return;
     }
 
     ensureCommittedBaseline();
 
     const { setter, types } = resolvePromptApi();
+    console.log('[Story Tracker DEBUG] Prompt API resolved:', {
+        hasSetter: typeof setter === 'function',
+        hasTypes: Boolean(types),
+        hasInChat: Boolean(types?.IN_CHAT),
+        inChatValue: types?.IN_CHAT
+    });
     if (typeof setter !== 'function' || !types?.IN_CHAT) {
+        console.error('[Story Tracker DEBUG] Prompt API not available - injection failed!');
         return;
     }
 
@@ -85,8 +101,15 @@ export function onGenerationStarted() {
             includeNarrative: true
         });
 
+        console.log('[Story Tracker DEBUG] Injecting prompt:', {
+            promptLength: instructions.length,
+            promptPreview: instructions.substring(0, 200)
+        });
+
         setter(PROMPT_IDS.INSTRUCTIONS, instructions, types.IN_CHAT, 0, false);
         setter(PROMPT_IDS.CONTEXT, '', types.IN_CHAT, 0, false);
+
+        console.log('[Story Tracker DEBUG] Prompt injected successfully');
     } else if (extensionSettings.generationMode === 'separate') {
         const baseline = committedTrackerData || extensionSettings.trackerData;
         const contextSummary = buildTrackerContext(baseline);

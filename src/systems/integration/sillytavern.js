@@ -16,6 +16,7 @@ import { loadChatData, saveChatData } from '../../core/persistence.js';
 import { updateTrackerData } from '../generation/apiClient.js';
 import { renderTracker } from '../rendering/tracker.js';
 import { parseResponse } from '../generation/parser.js';
+import { onGenerationStarted } from '../generation/injector.js';
 
 const SWIPE_STORAGE_KEY = 'story_tracker_swipes';
 
@@ -78,6 +79,11 @@ export function commitTrackerData() {
 export function onMessageSent() {
     setLastActionWasSwipe(false);
     commitTrackerData();
+
+    if (extensionSettings.generationMode === 'together') {
+        console.log('[Story Tracker DEBUG] Forcing prompt injection from onMessageSent');
+        onGenerationStarted();
+    }
 }
 
 /**
@@ -85,6 +91,11 @@ export function onMessageSent() {
  * Parses tracker data in "together" mode or triggers a separate update.
  */
 export async function onMessageReceived() {
+    console.log('[Story Tracker DEBUG] onMessageReceived called', {
+        enabled: extensionSettings.enabled,
+        generationMode: extensionSettings.generationMode
+    });
+
     if (!extensionSettings.enabled) {
         return;
     }
@@ -92,16 +103,29 @@ export async function onMessageReceived() {
     const context = getContext();
     const chat = context?.chat;
     if (!Array.isArray(chat) || chat.length === 0) {
+        console.log('[Story Tracker DEBUG] No chat messages');
         return;
     }
 
     const lastMessage = chat[chat.length - 1];
+    console.log('[Story Tracker DEBUG] Last message:', {
+        isUser: lastMessage?.is_user,
+        messageLength: lastMessage?.mes?.length,
+        messagePreview: lastMessage?.mes?.substring(0, 200)
+    });
+
     if (!lastMessage || lastMessage.is_user) {
         return;
     }
 
     if (extensionSettings.generationMode === 'together') {
         const parsed = parseResponse(lastMessage.mes || '');
+
+        console.log('[Story Tracker DEBUG] Parsed response:', {
+            hasTrackerData: Boolean(parsed.trackerData),
+            hasCleanedText: Boolean(parsed.cleanedText),
+            trackerSections: parsed.trackerData?.sections?.length
+        });
 
         if (parsed.trackerData) {
             const trackerClone = cloneData(parsed.trackerData);
@@ -134,6 +158,8 @@ export async function onMessageReceived() {
 
             renderTracker();
             saveChatData();
+        } else {
+            console.warn('[Story Tracker DEBUG] No tracker data found in response!');
         }
     } else if (extensionSettings.generationMode === 'separate' && extensionSettings.autoUpdate) {
         setTimeout(() => updateTrackerData(renderTracker), 500);
