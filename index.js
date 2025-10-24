@@ -1,6 +1,6 @@
 import { extensionName, extensionDisplayName, defaultSettings } from './src/core/config.js';
 import { extensionSettings, updateExtensionSettings, setPanelContainer, setSectionsContainer } from './src/core/state.js';
-import { loadDefaultTrackerTemplate } from './src/core/dataManager.js';
+import { loadDefaultTrackerTemplate, DEFAULT_PRESET_NAME } from './src/core/dataManager.js';
 import { renderTracker } from './src/systems/rendering/tracker.js';
 import { setupPresetManager, saveCurrentPreset } from './src/core/presetManager.js';
 import { setupSettingsPopup, setupFieldPopup, showSettingsModal } from './src/systems/ui/modals.js';
@@ -219,9 +219,9 @@ async function initializeExtension(root, html, base, { viaFallback = false } = {
             updateExtensionSettings({
                 systemPrompt: preset.systemPrompt,
                 trackerData: preset.trackerData,
-                currentPreset: 'Default',
+                currentPreset: DEFAULT_PRESET_NAME,
             });
-            saveCurrentPreset('Default');
+            saveCurrentPreset(DEFAULT_PRESET_NAME);
         } catch (error) {
             console.error('[Story Tracker] Failed to load default preset:', error);
         }

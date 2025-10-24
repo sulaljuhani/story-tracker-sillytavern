@@ -66,6 +66,19 @@ export function populatePresetDropdown() {
     }
 }
 
+export function syncPresetSelection(presetName = '') {
+    const normalizedName = typeof presetName === 'string' ? presetName : '';
+    updateExtensionSettings({ currentPreset: normalizedName });
+    populatePresetDropdown();
+
+    if (typeof globalThis.$ === 'function') {
+        const $select = globalThis.$('#story-tracker-preset-select');
+        if ($select && typeof $select.val === 'function') {
+            $select.val(normalizedName);
+        }
+    }
+}
+
 export function setupPresetManager() {
     populatePresetDropdown();
 

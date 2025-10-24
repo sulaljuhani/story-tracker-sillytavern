@@ -10,7 +10,14 @@ import {
     updateExtensionSettings
 } from '../../core/state.js';
 import { saveSettings, saveChatData } from '../../core/persistence.js';
-import { loadDefaultTrackerTemplate, updateTrackerData, getTrackerData, setTrackerDataFormat } from '../../core/dataManager.js';
+import {
+    loadDefaultTrackerTemplate,
+    updateTrackerData,
+    getTrackerData,
+    setTrackerDataFormat,
+    DEFAULT_PRESET_NAME,
+} from '../../core/dataManager.js';
+import { syncPresetSelection } from '../../core/presetManager.js';
 import { serializeTrackerData, parseTrackerData, FORMAT_JSON } from '../../core/serialization.js';
 
 const FORMAT_YAML = 'yaml';
@@ -325,11 +332,16 @@ function initializeDataManager(modalBody, initialFormat) {
         };
     };
 
-    const applyData = async (data, successMessage) => {
+    const applyData = async (data, successMessage, options = {}) => {
         try {
             const { trackerData, systemPrompt } = normalizeTrackerPayload(data);
             if (typeof systemPrompt === 'string') {
                 updateExtensionSettings({ systemPrompt });
+            }
+            if (typeof options.presetName === 'string') {
+                syncPresetSelection(options.presetName);
+            } else if (options.clearPreset) {
+                syncPresetSelection('');
             }
             updateTrackerData(trackerData);
             setTrackerDataFormat(currentFormat);
@@ -385,7 +397,9 @@ function initializeDataManager(modalBody, initialFormat) {
                 await applyData({
                     trackerData,
                     systemPrompt: template?.systemPrompt,
-                }, 'Loaded default tracker template.');
+                }, 'Loaded default tracker template.', {
+                    presetName: template?.name || DEFAULT_PRESET_NAME,
+                });
             })
             .catch(error => {
                 showDataError(`Failed to load default template: ${error.message || error}`);
@@ -400,7 +414,7 @@ function initializeDataManager(modalBody, initialFormat) {
                 return;
             }
             const parsed = parseTrackerData(raw, currentFormat);
-            await applyData(parsed, 'Tracker data updated.');
+            await applyData(parsed, 'Tracker data updated.', { clearPreset: true });
         } catch (error) {
             showDataError(`Failed to parse tracker data: ${error.message || error}`);
         }
@@ -437,7 +451,7 @@ function initializeDataManager(modalBody, initialFormat) {
                 currentFormat = normalizeFormat(detectedFormat);
                 formatSelect.val(currentFormat);
                 editor.val(serializeTrackerData(parsed, currentFormat));
-                await applyData(parsed, 'Imported tracker data file.');
+                await applyData(parsed, 'Imported tracker data file.', { clearPreset: true });
                 hideDataError();
             } catch (error) {
                 showDataError(`Failed to import file: ${error.message || error}`);
